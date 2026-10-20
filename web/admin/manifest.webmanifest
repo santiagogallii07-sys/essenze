@@ -1,0 +1,13 @@
+{
+  "name": "Essenze · Panel",
+  "short_name": "Essenze",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#0b0a09",
+  "theme_color": "#0b0a09",
+  "icons": [
+    { "src": "/img/favicon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/img/favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Perfume · Essenze Parfum &amp; Decants</title>
+  <meta name="description" content="Notas, acordes, tamaños y precios. Pedidos por WhatsApp.">
+  <meta name="theme-color" content="#0b0a09">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:image" content="/img/compartir.png">
+  <link rel="icon" href="/img/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/img/favicon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Tenor+Sans&display=swap">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <script type="module" src="/js/perfume.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="cabecera" data-cabecera></header>
+
+  <main id="contenido" data-ficha>
+    <nav class="migas contenedor" aria-label="Ubicación"><ol data-migas></ol></nav>
+    <section class="ficha contenedor">
+      <div class="ficha__visor visor" data-visor>
+        <div class="visor__escena visor__escena--foto"><div class="visor__relieve" data-relieve-previo></div></div>
+      </div>
+      <div class="ficha__info" data-info aria-busy="true">
+        <span class="esqueleto esqueleto--marca"></span>
+        <span class="esqueleto esqueleto--titulo"></span>
+        <span class="esqueleto esqueleto--linea"></span>
+        <span class="esqueleto esqueleto--linea"></span>
+      </div>
+    </section>
+    <div data-despues></div>
+  </main>
+  <script>
+    // Transición desde la tarjeta: la foto aparece al instante en su lugar final y se "estira" desde la grilla.
+    try {
+      var t = JSON.parse(sessionStorage.getItem('essenze-transicion') || 'null');
+      var id = new URLSearchParams(location.search).get('p');
+      if (t && t.id === id) {
+        var img = document.createElement('img');
+        img.src = t.src;
+        img.alt = '';
+        img.setAttribute('data-foto-principal', '');
+        img.style.viewTransitionName = 'foto-perfume';
+        var r = document.querySelector('[data-relieve-previo]');
+        r.className += t.recorte ? ' es-recorte' : ' es-completa';
+        r.appendChild(img);
+      }
+    } catch (e) {}
+  </script>
+
+  <footer class="pie" data-pie></footer>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "essenze-parfum",
+  "private": true,
+  "description": "Essenze Parfum & Decants: tienda y panel (Cloudflare Pages + Functions + D1).",
+  "scripts": {
+    "dev": "wrangler pages dev --port 8788",
+    "base:local": "wrangler d1 migrations apply essenze --local"
+  }
+}

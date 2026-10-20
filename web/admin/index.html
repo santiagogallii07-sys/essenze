@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0b0a09">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Panel · Essenze</title>
+  <link rel="icon" href="/img/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/img/favicon-180.png">
+  <link rel="manifest" href="/admin/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Tenor+Sans&display=swap">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <script type="module" src="/admin/js/app.js"></script>
+</head>
+<body>
+  <!-- Ingreso -->
+  <main class="ingreso" data-ingreso hidden>
+    <form class="ingreso__caja" data-form-ingreso>
+      <img class="ingreso__logo" src="/img/logo-completo.png" alt="Essenze Parfum &amp; Decants" width="180" height="218">
+      <h1 class="ingreso__titulo">Panel de administración</h1>
+      <label class="campo">
+        <span>Contraseña</span>
+        <input type="password" name="contrasena" autocomplete="current-password" required enterkeyhint="go">
+      </label>
+      <p class="campo__error" data-error-ingreso role="alert"></p>
+      <button class="boton boton--lleno boton--ancho" type="submit">Entrar</button>
+      <a class="ingreso__volver" href="/">Volver a la tienda</a>
+    </form>
+  </main>
+
+  <!-- Panel -->
+  <div class="panel" data-panel hidden>
+    <aside class="lateral-admin" aria-label="Secciones">
+      <a class="lateral-admin__marca" href="#/resumen">
+        <img src="/img/logo-marca.png" alt="" width="38" height="36">
+        <span><strong>Essenze</strong><small>Panel</small></span>
+      </a>
+      <nav data-nav-lateral></nav>
+      <div class="lateral-admin__pie">
+        <a class="lateral-admin__enlace" href="/" target="_blank" rel="noopener" data-icono="tienda">Ver tienda</a>
+        <button class="lateral-admin__enlace" type="button" data-salir data-icono="salir">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <div class="principal">
+      <header class="barra-admin">
+        <button class="boton-icono barra-admin__volver" type="button" data-volver aria-label="Volver" hidden></button>
+        <h1 class="barra-admin__titulo" data-titulo>Resumen</h1>
+        <div class="barra-admin__acciones" data-acciones></div>
+      </header>
+      <main class="vista" data-vista tabindex="-1"></main>
+    </div>
+
+    <nav class="pestanas-admin" data-nav-inferior aria-label="Secciones"></nav>
+  </div>
+</body>
+</html>

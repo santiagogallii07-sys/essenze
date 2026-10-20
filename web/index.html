@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Essenze · Parfum &amp; Decants · Córdoba</title>
+  <meta name="description" content="Perfumes árabes, de diseñador y de nicho en Córdoba. Elegí por marca o por cómo huelen y hacé tu pedido por WhatsApp.">
+  <meta name="theme-color" content="#0b0a09">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="Essenze · Parfum & Decants">
+  <meta property="og:description" content="Perfumes árabes, de diseñador y de nicho en Córdoba. Pedidos por WhatsApp.">
+  <meta property="og:image" content="/img/compartir.png">
+  <link rel="icon" href="/img/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/img/favicon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Tenor+Sans&display=swap">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <script type="module" src="/js/inicio.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="cabecera" data-cabecera></header>
+
+  <main id="contenido">
+    <section class="cartelera" data-cartelera aria-roledescription="carrusel" aria-label="Ofertas y novedades">
+      <div class="cartelera__esqueleto" aria-hidden="true"></div>
+    </section>
+
+    <nav class="cinta" data-marcas aria-label="Marcas"></nav>
+
+    <section class="seccion contenedor" aria-labelledby="t-tipos">
+      <div class="seccion__cabecera">
+        <h2 class="titulo-seccion revelar revelar--linea" id="t-tipos">Elegí tu estilo</h2>
+      </div>
+      <ul class="tipos" data-tipos></ul>
+    </section>
+
+    <section class="seccion contenedor" aria-labelledby="t-destacados">
+      <div class="seccion__cabecera">
+        <h2 class="titulo-seccion revelar revelar--linea" id="t-destacados">Perfumes</h2>
+        <a class="enlace-dorado" href="/catalogo">Ver los <span data-total-perfumes></span> <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg></a>
+      </div>
+      <div class="grilla-productos" data-destacados></div>
+    </section>
+
+    <section class="olor" aria-labelledby="t-olor">
+      <div class="contenedor olor__interior">
+        <div class="olor__texto">
+          <h2 class="titulo-seccion revelar revelar--linea" id="t-olor">Elegí por cómo huele</h2>
+          <p>¿Te gustan los perfumes dulces, frescos o amaderados? Tocá un acorde y te mostramos los perfumes donde más se siente.</p>
+        </div>
+        <ul class="acordes-nube" data-acordes></ul>
+      </div>
+    </section>
+
+    <section class="seccion contenedor" aria-labelledby="t-ofertas" data-seccion-ofertas>
+      <div class="seccion__cabecera">
+        <h2 class="titulo-seccion revelar revelar--linea" id="t-ofertas">En oferta</h2>
+        <a class="enlace-dorado" href="/catalogo?oferta=1">Ver ofertas <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg></a>
+      </div>
+      <div class="grilla-productos grilla-productos--fila" data-ofertas></div>
+    </section>
+
+    <section class="pasos contenedor" aria-labelledby="t-pasos">
+      <h2 class="titulo-seccion revelar revelar--linea" id="t-pasos">Cómo comprar</h2>
+      <ol class="pasos__lista">
+        <li class="revelar"><span class="pasos__numero">1</span><h3>Elegí tus perfumes</h3><p>Mirá notas, acordes y tamaños, y agregalos a tu bolsa.</p></li>
+        <li class="revelar"><span class="pasos__numero">2</span><h3>Dejá tus datos</h3><p>Nombre, email y teléfono. No pagás nada en la web.</p></li>
+        <li class="revelar"><span class="pasos__numero">3</span><h3>Confirmamos por WhatsApp</h3><p>Te llega el pedido armado y coordinamos pago y entrega.</p></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="pie" data-pie></footer>
+</body>
+</html>

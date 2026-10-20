@@ -1,0 +1,183 @@
+// Caja (cash flow): ingresos, egresos, saldo y margen del mes, con movimientos y gráfico.
+import { api } from '../api.js';
+import { icono, escapar, usd, ars, fecha, nombreMes, hoja, confirmar, aviso, avisoError, conCarga, hoy } from '../ui.js';
+import { graficoMeses } from './resumen.js';
+
+function moverMes(mes, delta) {
+  const [a, m] = mes.split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1 + delta, 1)).toISOString().slice(0, 7);
+}
+
+async function dialogoMovimiento({ movimiento, categorias, cotizacion, tipoInicial = 'egreso' }) {
+  const m = movimiento || { tipo: tipoInicial, categoria: '', monto: '', moneda: 'USD', fecha: hoy(), descripcion: '' };
+  const montoInicial = m.moneda === 'ARS' ? m.monto_original : m.monto;
+  const h = hoja({
+    titulo: movimiento ? 'Editar movimiento' : 'Nuevo movimiento',
+    ancho: 480,
+    html: `
+      <div class="segmentado" role="radiogroup" aria-label="Tipo">
+        <label><input type="radio" name="tipo" value="egreso" ${m.tipo === 'egreso' ? 'checked' : ''}><span>Gasto</span></label>
+        <label><input type="radio" name="tipo" value="ingreso" ${m.tipo === 'ingreso' ? 'checked' : ''}><span>Ingreso</span></label>
+      </div>
+      <label class="campo"><span>Categoría</span><select data-categoria></select></label>
+      <div class="form-grilla form-grilla--2">
+        <label class="campo"><span>Monto</span><input type="number" inputmode="decimal" step="0.01" min="0" value="${montoInicial ?? ''}" data-monto required></label>
+        <div class="campo"><span class="campo__rotulo">Moneda</span>
+          <div class="segmentado"><label><input type="radio" name="moneda" value="USD" ${m.moneda !== 'ARS' ? 'checked' : ''}><span>USD</span></label><label><input type="radio" name="moneda" value="ARS" ${m.moneda === 'ARS' ? 'checked' : ''}><span>Pesos</span></label></div>
+        </div>
+      </div>
+      <p class="campo__ayuda" data-conversion></p>
+      <label class="campo"><span>Fecha</span><input type="date" value="${m.fecha}" data-fecha></label>
+      <label class="campo"><span>Detalle</span><input data-descripcion value="${escapar(m.descripcion)}" placeholder="Ej. Compra a proveedor Lattafa" maxlength="200"></label>`,
+    pie: `${movimiento ? `<button class="boton boton--peligro" type="button" data-borrar aria-label="Eliminar">${icono('basura')}</button>` : ''}<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-guardar>Guardar</button>`,
+  });
+  const d = h.dialogo;
+  const pintarCategorias = () => {
+    const tipo = d.querySelector('[name=tipo]:checked').value;
+    d.querySelector('[data-categoria]').innerHTML = categorias[tipo].map((c) => `<option ${c === m.categoria ? 'selected' : ''}>${c}</option>`).join('');
+  };
+  const pintarConversion = () => {
+    const ars_ = d.querySelector('[name=moneda]:checked').value === 'ARS';
+    const v = Number(d.querySelector('[data-monto]').value);
+    d.querySelector('[data-conversion]').textContent = ars_ && v && cotizacion ? `≈ ${usd(v / cotizacion)} con el dólar a ${ars(cotizacion)} (se cambia en Ajustes)` : '';
+  };
+  d.addEventListener('change', (e) => {
+    if (e.target.name === 'tipo') pintarCategorias();
+    pintarConversion();
+  });
+  d.querySelector('[data-monto]').addEventListener('input', pintarConversion);
+  pintarCategorias();
+  pintarConversion();
+  setTimeout(() => d.querySelector('[data-monto]').focus(), 80);
+
+  d.querySelector('[data-guardar]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
+    const datos = {
+      tipo: d.querySelector('[name=tipo]:checked').value,
+      categoria: d.querySelector('[data-categoria]').value,
+      monto: d.querySelector('[data-monto]').value,
+      moneda: d.querySelector('[name=moneda]:checked').value,
+      fecha: d.querySelector('[data-fecha]').value,
+      descripcion: d.querySelector('[data-descripcion]').value,
+    };
+    try {
+      if (movimiento) await api(`/movimientos/${movimiento.id}`, { metodo: 'PUT', datos });
+      else await api('/movimientos', { metodo: 'POST', datos });
+      aviso(datos.tipo === 'egreso' ? 'Gasto guardado' : 'Ingreso guardado');
+      h.cerrar(true);
+    } catch (err) {
+      avisoError(err);
+    }
+  }));
+  d.querySelector('[data-borrar]')?.addEventListener('click', async () => {
+    h.cerrar();
+    if (await confirmar('¿Eliminar este movimiento?', { aceptar: 'Eliminar', peligro: true })) {
+      await api(`/movimientos/${movimiento.id}`, { metodo: 'DELETE' }).catch(avisoError);
+      document.dispatchEvent(new CustomEvent('caja:recargar'));
+    }
+  });
+  return h.cerrada.then((v) => v === true);
+}
+
+function csv(movimientos, mes) {
+  const filas = [['Fecha', 'Tipo', 'Categoría', 'Detalle', 'Monto USD', 'Moneda original', 'Monto original', 'Cotización']];
+  for (const m of movimientos) filas.push([m.fecha, m.tipo, m.categoria, m.descripcion, m.monto, m.moneda, m.monto_original ?? '', m.cotizacion ?? '']);
+  const texto = filas.map((f) => f.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([`﻿${texto}`], { type: 'text/csv;charset=utf-8' }));
+  a.download = `essenze-caja-${mes}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+export async function montar({ vista, consulta, app }) {
+  app.titulo('Caja');
+  const nuevo = document.createElement('button');
+  nuevo.className = 'boton boton--lleno boton--chico';
+  nuevo.type = 'button';
+  nuevo.innerHTML = `${icono('mas')}<span>Movimiento</span>`;
+  app.acciones(nuevo);
+
+  let mes = sessionStorage.getItem('admin-caja-mes') || hoy().slice(0, 7);
+  let datos;
+  let resumen;
+  const { cotizacion } = await api('/ajustes');
+
+  async function cargar() {
+    sessionStorage.setItem('admin-caja-mes', mes);
+    [datos, resumen] = await Promise.all([api(`/movimientos?mes=${mes}`), api(`/resumen?mes=${mes}`)]);
+    pintar();
+  }
+
+  function pintar() {
+    const c = resumen.caja;
+    const maxCat = Math.max(1, ...resumen.egresosPorCategoria.map((x) => x.total));
+    const esActual = mes === hoy().slice(0, 7);
+    vista.innerHTML = `
+      <div class="selector-mes">
+        <button class="boton-icono" type="button" data-mes="-1" aria-label="Mes anterior">${icono('flechaIzq')}</button>
+        <span class="selector-mes__nombre">${nombreMes(mes)}</span>
+        <button class="boton-icono" type="button" data-mes="1" aria-label="Mes siguiente" ${esActual ? 'disabled' : ''}>${icono('flecha')}</button>
+      </div>
+
+      <div class="cifras">
+        <div class="cifra cifra--positiva"><span class="cifra__rotulo">Ingresos</span><span class="cifra__valor">${usd(c.ingresos)}</span><span class="cifra__nota">Ventas ${usd(c.ventas)}</span></div>
+        <div class="cifra cifra--negativa"><span class="cifra__rotulo">Egresos</span><span class="cifra__valor">${usd(c.egresos)}</span><span class="cifra__nota">Gastos y compras</span></div>
+        <div class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}"><span class="cifra__rotulo">Saldo</span><span class="cifra__valor">${usd(c.saldo)}</span><span class="cifra__nota">${cotizacion ? `≈ ${ars(c.saldo * cotizacion)}` : 'Ingresos − egresos'}</span></div>
+        <div class="cifra"><span class="cifra__rotulo">Margen de ventas</span><span class="cifra__valor">${usd(c.margen)}</span><span class="cifra__nota">${c.ventas ? `${Math.round((c.margen / c.ventas) * 100)}% · costo ${usd(c.costoVendido)}` : 'Sin ventas'}</span></div>
+      </div>
+
+      <div class="grilla-admin grilla-admin--2" style="margin-top:12px">
+        <section class="tarjeta-admin">
+          <h3 class="tarjeta-admin__titulo">Últimos 6 meses</h3>
+          ${graficoMeses(resumen.meses)}
+        </section>
+        <section class="tarjeta-admin">
+          <h3 class="tarjeta-admin__titulo">Gastos por categoría</h3>
+          ${resumen.egresosPorCategoria.length ? resumen.egresosPorCategoria.map((x) => `
+            <div class="barra-h"><span>${escapar(x.categoria)}</span><span class="num">${usd(x.total)}</span>
+              <span class="barra-h__pista"><span style="width:${(x.total / maxCat) * 100}%"></span></span></div>`).join('') : '<p class="cifra__nota">Sin gastos este mes.</p>'}
+        </section>
+      </div>
+
+      <section class="tarjeta-admin" style="margin-top:12px">
+        <h3 class="tarjeta-admin__titulo">Movimientos <button type="button" data-csv>${datos.movimientos.length ? 'Descargar planilla' : ''}</button></h3>
+        ${datos.movimientos.length ? `<ul class="lista-admin">${datos.movimientos.map((m) => `
+          <li><button class="movimiento movimiento--${m.tipo}" type="button" data-mov="${m.id}">
+            <span class="movimiento__titulo">${escapar(m.descripcion || m.categoria)}</span>
+            <span class="movimiento__monto">${m.tipo === 'egreso' ? '−' : '+'}${usd(m.monto)}${m.moneda === 'ARS' ? `<small>${ars(m.monto_original)}</small>` : ''}</span>
+            <span class="movimiento__sub">${fecha(m.fecha)} · ${escapar(m.categoria)}${m.pedido ? ' · desde pedido' : ''}</span>
+          </button></li>`).join('')}</ul>` : `<div class="vacio-admin">${icono('caja')}<p>Sin movimientos en ${nombreMes(mes).toLowerCase()}.</p><p class="vacio-admin__detalle">Las ventas cobradas se suman solas. Cargá acá compras de mercadería, envíos, publicidad y otros gastos.</p></div>`}
+      </section>`;
+  }
+
+  vista.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-mes]');
+    if (b) {
+      mes = moverMes(mes, Number(b.dataset.mes));
+      cargar();
+      return;
+    }
+    if (e.target.closest('[data-csv]') && datos.movimientos.length) {
+      csv(datos.movimientos, mes);
+      return;
+    }
+    const mov = e.target.closest('[data-mov]');
+    if (mov) {
+      const m = datos.movimientos.find((x) => x.id === mov.dataset.mov);
+      if (m.pedido) {
+        aviso('Este ingreso viene de un pedido: se cambia desde Pedidos.', 'error');
+        return;
+      }
+      if (await dialogoMovimiento({ movimiento: m, categorias: datos.categorias, cotizacion })) cargar();
+    }
+  });
+  const recargar = () => cargar();
+  document.addEventListener('caja:recargar', recargar);
+  nuevo.addEventListener('click', async () => {
+    if (await dialogoMovimiento({ categorias: datos.categorias, cotizacion })) cargar();
+  });
+
+  await cargar();
+  if (consulta.has('gasto')) nuevo.click();
+  return () => document.removeEventListener('caja:recargar', recargar);
+}
