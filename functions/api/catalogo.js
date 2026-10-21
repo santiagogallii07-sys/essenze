@@ -2,6 +2,7 @@
 // Se cachea en el borde de Cloudflare por versión: cualquier cambio en el panel la renueva.
 import { manejar, jsonCrudo, leerAjustes, hoyArgentina } from '../../lib/util.js';
 import { listaJSON } from '../../lib/perfumes.js';
+import { asegurarEsquema } from '../../lib/esquema.js';
 
 export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
   const ajustes = await leerAjustes(env);
@@ -11,8 +12,9 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
   const guardado = await cache.match(clave);
   if (guardado) return guardado;
 
+  await asegurarEsquema(env);
   const { results: ofertas } = await env.DB.prepare(
-    `SELECT id, etiqueta, titulo, texto, boton, enlace, perfume, imagen, desde, hasta
+    `SELECT id, etiqueta, titulo, texto, boton, enlace, perfume, imagen, imagen_movil, formato, desde, hasta
      FROM ofertas WHERE activa = 1 ORDER BY orden, creado`,
   ).all();
   const vigentes = ofertas.filter((o) => (!o.desde || o.desde <= hoy) && (!o.hasta || o.hasta >= hoy));

@@ -1,6 +1,7 @@
 // Editor de un perfume: fotos (con recorte de fondo), datos, tamaños/precios/costos y aroma.
 import { api, subirImagen } from '../api.js';
 import { procesarFoto, urlTemporal } from '../fotos.js';
+import { encuadrar } from '../encuadre.js';
 import { icono, escapar, usd, pesos, dolarActual, hoja, confirmar, aviso, avisoError, conCarga, TIPOS } from '../ui.js';
 import { dialogoDescuento } from './ofertas.js';
 import { frascoSVG } from '/js/frasco.js';
@@ -98,6 +99,10 @@ export async function montar({ vista, params, app }) {
             <label class="boton boton--suave">${icono('subir')}<span>Subir</span><input type="file" accept="image/*" data-archivo hidden></label>
             <button class="boton boton--suave" type="button" data-link>${icono('enlace')}<span>Pegar link</span></button>
             <button class="boton-icono" type="button" data-quitar-foto aria-label="Quitar foto">${icono('basura')}</button>
+          </div>
+          <div class="botonera" style="margin-top:8px">
+            <button class="boton boton--suave boton--chico" type="button" data-acomodar>${icono('editar')}<span>Acomodar la actual</span></button>
+            <a class="boton boton--suave boton--chico" target="_blank" rel="noopener" data-buscar-foto>${icono('buscar')}<span>Buscar foto grande</span></a>
           </div>
           <label class="interruptor" style="margin-top:6px">
             <span class="interruptor__texto">Quitar fondo blanco<small>Deja el frasco solo, sobre el escenario oscuro</small></span>
@@ -222,11 +227,18 @@ export async function montar({ vista, params, app }) {
     });
   }
 
+  // Toda foto nueva pasa por el encuadre: se acomoda a mano antes de subirla.
   async function usarFoto(archivo) {
-    const recortar = form.querySelector('[data-recortar]').checked;
+    let procesada;
+    try {
+      procesada = await encuadrar(archivo, { quitarFondo: form.querySelector('[data-recortar]').checked });
+    } catch (e) {
+      avisoError(e);
+      return;
+    }
+    if (!procesada) return;
     escena.innerHTML = '<div class="cargando"><span></span><span></span><span></span></div>';
     try {
-      const procesada = await procesarFoto(archivo, { quitarFondo: recortar });
       estado.fondo = procesada.fondo;
       pintarFoto(urlTemporal(procesada.blob));
       const r = await subirImagen(procesada);
@@ -241,8 +253,7 @@ export async function montar({ vista, params, app }) {
   }
 
   async function traerDeLink(url) {
-    const blob = await api(`/proxy-imagen?url=${encodeURIComponent(url)}`);
-    await usarFoto(blob);
+    return api(`/proxy-imagen?url=${encodeURIComponent(url)}`);
   }
 
   function datos() {
@@ -301,7 +312,7 @@ export async function montar({ vista, params, app }) {
     const h = hoja({
       titulo: 'Foto desde un link',
       ancho: 520,
-      html: `<p class="campo__ayuda">Buscá el perfume en Google Imágenes o en la web de la marca, abrí la imagen más grande, tocá y mantené (o clic derecho) → <em>Copiar dirección de imagen</em>, y pegala acá.</p>
+      html: `<p class="campo__ayuda">Buscá el perfume en Fragrantica, en la web de la marca o en Google Imágenes (filtro <em>Tamaño: Grande</em>), abrí la imagen más grande, tocá y mantené (o clic derecho) → <em>Copiar dirección de imagen</em>, y pegala acá. Después la acomodás en el marco.</p>
              <label class="campo"><span>Link de la imagen</span><input type="url" inputmode="url" placeholder="https://…" data-url autocomplete="off"></label>
              <p class="campo__error" data-error></p>`,
       pie: '<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-traer>Usar esta imagen</button>',
@@ -310,13 +321,30 @@ export async function montar({ vista, params, app }) {
     setTimeout(() => input.focus(), 60);
     h.dialogo.querySelector('[data-traer]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
       try {
-        await traerDeLink(input.value.trim());
+        const blob = await traerDeLink(input.value.trim());
         h.cerrar();
+        await h.cerrada;
+        usarFoto(blob);
       } catch (err) {
         h.dialogo.querySelector('[data-error]').textContent = err.message;
       }
     }));
   });
+  form.querySelector('[data-acomodar]').addEventListener('click', async () => {
+    if (!estado.imagen) return aviso('Este perfume todavía no tiene foto.', 'error');
+    try {
+      usarFoto(await (await fetch(`/foto/${estado.imagen}`)).blob());
+    } catch (err) {
+      avisoError(err);
+    }
+    return undefined;
+  });
+  const linkBuscarFoto = () => {
+    const q = `${form.elements.marca.value} ${form.elements.nombre.value} ${form.elements.concentracion.value} perfume`;
+    form.querySelector('[data-buscar-foto]').href = `https://www.google.com/search?tbm=isch&tbs=isz:l&q=${encodeURIComponent(q)}`;
+  };
+  linkBuscarFoto();
+  form.addEventListener('input', linkBuscarFoto);
   form.querySelector('[data-quitar-foto]').addEventListener('click', () => {
     if (!estado.imagen) return;
     estado.fotosViejas.add(estado.imagen);

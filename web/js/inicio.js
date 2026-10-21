@@ -31,6 +31,19 @@ function montarCartelera(raiz, ofertas, porId, perfumes) {
   const diapositivas = lista.map((o, i) => {
     const p = porId.get(o.perfume);
     const Titulo = i === 0 ? 'h1' : 'h2';
+    // Banner hecho con IA: la imagen completa es la diapositiva y todo el banner es un enlace.
+    if (o.formato === 'banner' && o.imagen) {
+      return `
+    <article class="cartel cartel--banner ${o.imagen_movil ? 'cartel--con-movil' : ''} ${i === 0 ? 'es-activo' : ''}" aria-roledescription="diapositiva" aria-label="${i + 1} de ${lista.length}" ${i === 0 ? '' : 'aria-hidden="true" inert'}>
+      <${Titulo} class="solo-lector">${escapar(o.titulo)}</${Titulo}>
+      <a class="cartel__banner" href="${escapar(o.enlace)}">
+        <picture>
+          ${o.imagen_movil ? `<source media="(max-width: 860px)" srcset="/foto/${escapar(o.imagen_movil)}">` : ''}
+          <img src="/foto/${escapar(o.imagen)}" alt="${escapar([o.titulo, o.texto].filter(Boolean).join('. '))}" ${i ? 'loading="lazy"' : 'fetchpriority="high"'} draggable="false">
+        </picture>
+      </a>
+    </article>`;
+    }
     return `
     <article class="cartel ${i === 0 ? 'es-activo' : ''}" aria-roledescription="diapositiva" aria-label="${i + 1} de ${lista.length}" ${i === 0 ? '' : 'aria-hidden="true" inert'}>
       <div class="cartel__texto">

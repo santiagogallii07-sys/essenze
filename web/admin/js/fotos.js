@@ -7,6 +7,7 @@ const BLANCO = 236;      // canal mínimo para considerar un píxel "fondo blanc
 const TOLERANCIA = 26;   // diferencia máxima entre canales (fondo sin color)
 
 function esFondo(d, i) {
+  if (d[i + 3] < 12) return true; // lo transparente (márgenes del encuadre) también es fondo
   const r = d[i], g = d[i + 1], b = d[i + 2];
   return r >= BLANCO && g >= BLANCO && b >= BLANCO && Math.max(r, g, b) - Math.min(r, g, b) <= TOLERANCIA;
 }
@@ -130,6 +131,43 @@ export async function procesarFoto(archivo, { quitarFondo = true, maximo = 1000 
   let blob = await aBlob(final, 'image/webp', fondo === 'recorte' ? 0.9 : 0.85);
   if (!blob || blob.type !== 'image/webp') blob = await aBlob(final, fondo === 'recorte' ? 'image/png' : 'image/jpeg', 0.88);
   return { blob, tipo: blob.type, fondo, ancho: fw, alto: fh };
+}
+
+// Foto ya encuadrada a mano: se quita el fondo blanco (opcional) pero se respeta el encuadre.
+export async function procesarEncuadre(canvas, { quitarFondo = true } = {}) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = img.data;
+  let transparentes = 0;
+  for (let i = 3; i < d.length; i += 400) if (d[i] < 12) transparentes++;
+  const conMargen = transparentes > 0;
+  let fondo = conMargen ? 'recorte' : 'foto';
+  if (quitarFondo && proporcionBordeBlanco(d, canvas.width, canvas.height) > 0.6) {
+    img = quitarFondoBlanco(img);
+    ctx.putImageData(img, 0, 0);
+    fondo = 'recorte';
+  }
+  let blob = await aBlob(canvas, 'image/webp', 0.9);
+  if (!blob || blob.type !== 'image/webp') blob = await aBlob(canvas, fondo === 'recorte' ? 'image/png' : 'image/jpeg', 0.9);
+  return { blob, tipo: blob.type, fondo, ancho: canvas.width, alto: canvas.height };
+}
+
+// Banner de publicidad: se respeta la imagen tal cual (sin recortes), solo se achica y comprime.
+export async function procesarBanner(archivo, { ancho = 2400 } = {}) {
+  const bmp = await createImageBitmap(archivo);
+  const escala = Math.min(1, ancho / bmp.width);
+  const c = lienzo(Math.round(bmp.width * escala), Math.round(bmp.height * escala));
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close?.();
+  let blob = null;
+  for (const calidad of [0.88, 0.8, 0.7]) {
+    blob = await aBlob(c, 'image/webp', calidad);
+    if (!blob || blob.type !== 'image/webp') blob = await aBlob(c, 'image/jpeg', calidad);
+    if (blob.size < 1_600_000) break;
+  }
+  return { blob, tipo: blob.type, fondo: 'foto', ancho: c.width, alto: c.height };
 }
 
 // Previsualización para mostrar antes de subir.

@@ -1670,3 +1670,22 @@ button, .boton, .chip, .pestana, .tamano, .tamano-rapido, .boton-circular, .acor
 
 /* Al abrir la bolsa el foco va al panel (no al botón cerrar), sin marco visible. */
 .bolsa__panel:focus { outline: none; }
+
+/* ---------- Banners de publicidad (imagen completa hecha con IA) ---------- */
+.solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.cartel--banner { grid-template-columns: 1fr; min-height: 0; align-content: center; padding-block: 28px 84px; }
+.cartel__banner { display: block; position: relative; overflow: hidden; border: 1px solid var(--linea); }
+.cartel__banner img { display: block; width: 100%; aspect-ratio: 12 / 5; object-fit: cover; transition: transform 1.2s var(--ease-out); }
+.cartel--banner.es-activo .cartel__banner img { animation: banner-entra 1.4s var(--ease-out) both; }
+@keyframes banner-entra { from { transform: scale(1.04); opacity: 0.6; } }
+@media (hover: hover) and (pointer: fine) {
+  .cartel__banner:hover img { transform: scale(1.015); }
+}
+@media (max-width: 860px) {
+  .cartel--banner { padding-block: 16px 76px; }
+  .cartel--con-movil .cartel__banner img { aspect-ratio: 4 / 5; }
+  .cartel--banner:not(.cartel--con-movil) .cartel__banner img { object-fit: contain; background: var(--negro); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cartel--banner.es-activo .cartel__banner img { animation: none; }
+}

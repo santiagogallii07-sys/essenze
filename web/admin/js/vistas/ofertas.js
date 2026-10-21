@@ -3,6 +3,7 @@ import { api, subirImagen } from '../api.js';
 import { procesarFoto } from '../fotos.js';
 import { icono, escapar, hoja, confirmar, aviso, avisoError, conCarga, fecha, miniatura, TIPOS } from '../ui.js';
 import { frascoSVG } from '/js/frasco.js';
+import { dialogoBanner } from '../banner.js';
 
 let cachePerfumes = null;
 async function perfumes() {
@@ -249,10 +250,10 @@ function tarjetaOferta(o, porId, i, total) {
   const vista = o.imagen ? `<img src="/foto/${o.imagen}" alt="">` : p ? (p.imagen ? `<img src="/foto/${p.imagen}" alt="">` : frascoSVG(p, { etiqueta: false })) : icono('imagen');
   const fechas = o.desde || o.hasta ? ` · ${o.desde ? `desde ${fecha(o.desde)}` : ''} ${o.hasta ? `hasta ${fecha(o.hasta)}` : ''}` : '';
   return `
-    <article class="oferta-admin ${o.activa ? '' : 'es-inactiva'}" data-id="${o.id}">
+    <article class="oferta-admin ${o.activa ? '' : 'es-inactiva'} ${o.formato === 'banner' ? 'oferta-admin--banner' : ''}" data-id="${o.id}">
       <div class="oferta-admin__vista">${vista}</div>
       <div class="oferta-admin__texto">
-        ${o.etiqueta ? `<span class="oferta-admin__etiqueta">${escapar(o.etiqueta)}</span>` : ''}
+        ${o.formato === 'banner' ? '<span class="oferta-admin__etiqueta">Banner de IA</span>' : o.etiqueta ? `<span class="oferta-admin__etiqueta">${escapar(o.etiqueta)}</span>` : ''}
         <span class="oferta-admin__titulo">${escapar(o.titulo)}</span>
         <span class="oferta-admin__sub">${escapar(o.texto)}</span>
         <span class="oferta-admin__sub">→ ${escapar(o.enlace)}${fechas}</span>
@@ -273,7 +274,11 @@ export async function montar({ vista, app }) {
   nueva.className = 'boton boton--lleno boton--chico';
   nueva.type = 'button';
   nueva.innerHTML = `${icono('mas')}<span>Diapositiva</span>`;
-  app.acciones(nueva);
+  const banner = document.createElement('button');
+  banner.className = 'boton boton--contorno boton--chico';
+  banner.type = 'button';
+  banner.innerHTML = `${icono('imagen')}<span>Cargar banner</span>`;
+  app.acciones([banner, nueva]);
 
   let ofertas = [];
   const lista = await perfumes();
@@ -289,7 +294,7 @@ export async function montar({ vista, app }) {
     vista.innerHTML = `
       <section class="tarjeta-admin">
         <h2 class="tarjeta-admin__titulo">Cartelera del inicio <a href="/" target="_blank" rel="noopener">Ver en la tienda</a></h2>
-        <p class="campo__ayuda" style="margin-bottom:12px">Las diapositivas se muestran en este orden y pasan solas. Si no hay ninguna activa, se muestra la bienvenida.</p>
+        <p class="campo__ayuda" style="margin-bottom:12px">Pasan solas en este orden. Hay dos tipos: <strong>Banner</strong> (una imagen completa hecha con IA, con el botón "Cargar banner") y <strong>Diapositiva</strong> (texto + foto de un perfume, armada por la página). Si no hay ninguna activa, se muestra la bienvenida.</p>
         <div data-lista>${ofertas.length ? ofertas.map((o, i) => tarjetaOferta(o, porId, i, ofertas.length)).join('') : '<p class="vacio-admin">Todavía no hay diapositivas.</p>'}</div>
       </section>
       <section class="tarjeta-admin">
@@ -316,7 +321,7 @@ export async function montar({ vista, app }) {
     if (!art) return;
     const o = ofertas.find((x) => x.id === art.dataset.id);
     if (e.target.closest('[data-editar]')) {
-      if (await editarOferta(o)) cargar();
+      if (await (o.formato === 'banner' ? dialogoBanner(o, enlacesSugeridos(lista)) : editarOferta(o))) cargar();
     } else if (e.target.closest('[data-borrar]')) {
       if (await confirmar(`¿Eliminar la diapositiva "${o.titulo}"?`, { aceptar: 'Eliminar', peligro: true })) {
         await api(`/ofertas/${o.id}`, { metodo: 'DELETE' }).catch(avisoError);
@@ -341,6 +346,9 @@ export async function montar({ vista, app }) {
     } catch (err) {
       avisoError(err);
     }
+  });
+  banner.addEventListener('click', async () => {
+    if (await dialogoBanner(null, enlacesSugeridos(lista))) cargar();
   });
   nueva.addEventListener('click', async () => {
     if (await editarOferta(null)) cargar();
