@@ -180,7 +180,7 @@ function pintarBolsa() {
 
   const ars = precioArs(total);
   bolsa.querySelectorAll('[data-total]').forEach((el) => { el.textContent = precio(total); });
-  bolsa.querySelectorAll('[data-total-ars]').forEach((el) => { el.textContent = ars ? `≈ ${ars}` : ''; });
+  bolsa.querySelectorAll('[data-total-ars]').forEach((el) => { el.textContent = ars; });
   const unidades = lineas.reduce((n, l) => n + l.cantidad, 0);
   bolsa.querySelector('[data-resumen]').textContent = `${unidades} ${unidades === 1 ? 'perfume' : 'perfumes'}`;
 }
@@ -220,7 +220,7 @@ export function mensajePedido(datos, lineas, numero) {
     `*Pedido ${numero}*`,
     ...renglones,
     ``,
-    `*Total: ${precio(total)}*${ars ? ` (≈ ${ars})` : ''}`,
+    `*Total: ${precio(total)}*${ars ? ` (${ars})` : ''}`,
     ``,
     `*Mis datos*`,
     `Nombre: ${datos.nombre}`,
@@ -490,7 +490,7 @@ export function tarjeta(p, { revelar = false } = {}) {
       </div>
     </a>
     <div class="tarjeta__pie">
-      <p class="tarjeta__precio">${unico ? '' : '<span class="tarjeta__desde">desde</span>'}${precio(precioDesde(p))}${masBarato.precioAnterior && masBarato.precioAnterior > masBarato.precio ? ` <s>${precio(masBarato.precioAnterior)}</s>` : ''}${ars ? `<span class="tarjeta__ars">≈ ${ars}</span>` : ''}</p>
+      <p class="tarjeta__precio">${unico ? '' : '<span class="tarjeta__desde">desde</span>'}${precio(precioDesde(p))}${masBarato.precioAnterior && masBarato.precioAnterior > masBarato.precio ? ` <s>${precio(masBarato.precioAnterior)}</s>` : ''}${ars ? `<span class="tarjeta__ars">${ars}</span>` : ''}</p>
       ${conStock
         ? `<button type="button" class="boton-circular" data-agregar aria-label="Agregar ${escapar(p.nombre)} a la bolsa" ${unico ? '' : 'aria-expanded="false"'}>${icono('mas')}</button>`
         : `<a class="boton-circular" href="${enlaceWhatsapp(`Hola! ¿Va a volver a entrar ${p.marca} ${p.nombre}?`)}" target="_blank" rel="noopener" aria-label="Consultar por ${escapar(p.nombre)} por WhatsApp">${iconoWhatsapp()}</a>`}

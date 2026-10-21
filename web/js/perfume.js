@@ -164,7 +164,7 @@ function pintarFicha(p) {
     form.querySelector('[data-cant="1"]').disabled = cantidad >= max;
     form.querySelector('[data-cant="-1"]').disabled = cantidad <= 1;
     const ars = precioArs(x.precio * cantidad);
-    arsEl.textContent = ars ? `≈ ${ars} al cambio de hoy` : '';
+    arsEl.textContent = ars ? `${ars} (precio en dólares)` : '';
     if (!disponible(x)) stockEl.textContent = '';
     else if (x.stock !== null && x.stock !== undefined && x.stock <= 2) stockEl.textContent = `Quedan ${x.stock} en ${textoMl(x.ml)}`;
     else stockEl.textContent = 'Disponible · entrega en Córdoba a coordinar';

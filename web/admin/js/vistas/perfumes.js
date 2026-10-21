@@ -1,6 +1,6 @@
 // Lista de perfumes con búsqueda, filtros y cambios rápidos (visible / destacado).
 import { api } from '../api.js';
-import { icono, escapar, usd, miniatura, demorar, avisoError, aviso, TIPOS } from '../ui.js';
+import { icono, escapar, usd, precioDoble, miniatura, demorar, avisoError, aviso, TIPOS } from '../ui.js';
 import { dialogoDescuento } from './ofertas.js';
 
 const POR_PAGINA = 60;
@@ -19,7 +19,7 @@ const FILTROS = {
 };
 
 function precioTexto(p) {
-  return p.presentaciones.map((x) => `${x.ml ? `${x.ml} ml ` : ''}<strong>${usd(x.precio)}</strong>${x.precioAnterior ? ` <s>${usd(x.precioAnterior)}</s>` : ''}${x.stock !== null && x.stock !== undefined ? ` · ${x.stock === 0 ? 'agotado' : `stock ${x.stock}`}` : ''}`).join(' · ');
+  return p.presentaciones.map((x) => `${x.ml ? `${x.ml} ml ` : ''}<strong>${precioDoble(x.precio)}</strong>${x.precioAnterior ? ` <s>${usd(x.precioAnterior)}</s>` : ''}${x.stock !== null && x.stock !== undefined ? ` · ${x.stock === 0 ? 'agotado' : `stock ${x.stock}`}` : ''}`).join(' · ');
 }
 
 function fila(p) {
@@ -50,7 +50,7 @@ export async function montar({ vista, consulta, app }) {
   const descuento = document.createElement('button');
   descuento.className = 'boton-icono';
   descuento.type = 'button';
-  descuento.setAttribute('aria-label', 'Aplicar descuento');
+  descuento.setAttribute('aria-label', 'Precios y descuentos');
   descuento.innerHTML = icono('porcentaje');
   app.acciones([descuento, nuevo]);
 

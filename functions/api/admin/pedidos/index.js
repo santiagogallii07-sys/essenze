@@ -48,7 +48,12 @@ export const onRequestPost = manejar(async ({ request, env }) => {
     total,
   };
   const estado = d.estado === 'entregado' ? 'entregado' : 'cobrado';
-  const cobro = await sentenciasCobro(env, pedido, true, { monto: d.cobrado === undefined || d.cobrado === '' ? total : numero(d.cobrado, total), metodo: texto(d.metodo_pago, 40), fecha });
+  const cobro = await sentenciasCobro(env, pedido, true, {
+    monto: d.cobrado === undefined || d.cobrado === '' ? total : numero(d.cobrado, total),
+    montoArs: d.cobradoArs === undefined || d.cobradoArs === '' ? undefined : numero(d.cobradoArs, 0),
+    metodo: texto(d.metodo_pago, 40),
+    fecha,
+  });
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO pedidos (id, creado, origen, estado, nombre, telefono, comentario, items, total, notas)

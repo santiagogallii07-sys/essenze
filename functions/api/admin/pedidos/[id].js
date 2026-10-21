@@ -19,6 +19,7 @@ export const onRequestPut = manejar(async ({ params, request, env }) => {
   const despues = estaCobrado(estado);
   const opciones = {
     monto: d.cobrado === undefined || d.cobrado === '' ? undefined : numero(d.cobrado, pedido.total),
+    montoArs: d.cobradoArs === undefined || d.cobradoArs === '' ? undefined : numero(d.cobradoArs, 0),
     metodo: d.metodo_pago !== undefined ? texto(d.metodo_pago, 40) : undefined,
     fecha: /^\d{4}-\d{2}-\d{2}$/.test(d.fecha || '') ? d.fecha : undefined,
   };

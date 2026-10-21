@@ -1,7 +1,8 @@
 // Editor de un perfume: fotos (con recorte de fondo), datos, tamaños/precios/costos y aroma.
 import { api, subirImagen } from '../api.js';
 import { procesarFoto, urlTemporal } from '../fotos.js';
-import { icono, escapar, usd, hoja, confirmar, aviso, avisoError, conCarga, TIPOS } from '../ui.js';
+import { icono, escapar, usd, pesos, dolarActual, hoja, confirmar, aviso, avisoError, conCarga, TIPOS } from '../ui.js';
+import { dialogoDescuento } from './ofertas.js';
 import { frascoSVG } from '/js/frasco.js';
 
 const ESTACIONES = { primavera: 'Primavera', verano: 'Verano', otono: 'Otoño', invierno: 'Invierno' };
@@ -145,7 +146,7 @@ export async function montar({ vista, params, app }) {
         <section class="tarjeta-admin">
           <h2 class="tarjeta-admin__titulo">Tamaños, precios y stock</h2>
           <div class="filas-tamanos" data-tamanos>${p.presentaciones.map(filaTamano).join('')}</div>
-          <button class="boton boton--suave boton--chico" type="button" data-agregar-tamano style="margin-top:10px">${icono('mas')}Agregar tamaño</button>
+          <div class="botonera" style="margin-top:10px"><button class="boton boton--suave boton--chico" type="button" data-agregar-tamano>${icono('mas')}Agregar tamaño</button>${esNuevo ? '' : `<button class="boton boton--contorno boton--chico" type="button" data-precio-rapido>${icono('porcentaje')}Descuento o aumento</button>`}</div>
           <p class="campo__ayuda" style="margin-top:8px">"Precio antes" se muestra tachado (oferta). Stock vacío = no se controla. El costo nunca se muestra en la tienda.</p>
         </section>
 
@@ -216,8 +217,8 @@ export async function montar({ vista, params, app }) {
       const m = f.querySelector('[data-margen]');
       if (Number.isFinite(precio) && Number.isFinite(costo) && precio > 0) {
         const g = precio - costo;
-        m.innerHTML = `Ganancia por unidad: <strong>${usd(g)}</strong> (${Math.round((g / precio) * 100)}%)`;
-      } else m.textContent = '';
+        m.innerHTML = `Ganancia por unidad: <strong>${pesos(g)}</strong> (${Math.round((g / precio) * 100)}%)${dolarActual() ? ` · se vende a ${pesos(precio)}` : ''}`;
+      } else m.textContent = Number.isFinite(precio) && dolarActual() ? `Se vende a ${pesos(precio)}` : '';
     });
   }
 
@@ -359,6 +360,17 @@ export async function montar({ vista, params, app }) {
     form.querySelector('[data-tamanos]').insertAdjacentHTML('beforeend', filaTamano({ ml: '', precio: '' }));
     form.querySelector('[data-tamano]:last-child [name=ml]').focus();
     marcarSucio();
+  });
+  form.querySelector('[data-precio-rapido]')?.addEventListener('click', async () => {
+    if (estado.sucio && !(await confirmar('Primero se guardan los cambios que hiciste.', { aceptar: 'Guardar y seguir' }))) return;
+    if (estado.sucio) form.requestSubmit();
+    if (await dialogoDescuento({ perfume: p, perfumes: cacheLista || undefined })) {
+      estado.sucio = false;
+      cacheLista = null;
+      const actual = await api(`/perfumes/${encodeURIComponent(p.id)}`);
+      form.querySelector('[data-tamanos]').innerHTML = actual.presentaciones.map(filaTamano).join('');
+      pintarMargenes();
+    }
   });
   form.querySelector('[data-agregar-acorde]').addEventListener('click', () => {
     form.querySelector('[data-acordes]').insertAdjacentHTML('beforeend', filaAcorde());

@@ -12,8 +12,8 @@ export const CONFIG = {
 };
 
 export const TIPOS = {
-  'arabe-masculino': 'Árabe masculino',
-  'arabe-femenino': 'Árabe femenino',
+  'arabe-masculino': 'Árabes masculinos',
+  'arabe-femenino': 'Árabes femeninos',
   'disenador-masculino': 'Diseñador masculino',
   'disenador-femenino': 'Diseñador femenino',
   'nicho': 'Nicho',

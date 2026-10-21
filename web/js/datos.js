@@ -67,14 +67,21 @@ export function descuentoMaximo(p) {
 const formato = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
 const formato2 = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const enPesos = () => CONFIG.mostrarArs && CONFIG.cotizacion > 0;
+
+// Precio principal: en pesos (redondeado a la centena) si hay cotización cargada; si no, en dólares.
 export function precio(valor) {
-  return `${CONFIG.moneda} ${Number.isInteger(valor) ? formato.format(valor) : formato2.format(valor)}`;
+  if (enPesos()) return `$ ${formato.format(Math.round((valor * CONFIG.cotizacion) / 100) * 100)}`;
+  return precioUsd(valor);
 }
 
-// Referencia en pesos (si está activada en el panel). Se redondea a la centena.
+export function precioUsd(valor) {
+  return `USD ${Number.isInteger(valor) ? formato.format(valor) : formato2.format(valor)}`;
+}
+
+// Precio secundario (chico, debajo): el valor en dólares cuando el principal está en pesos.
 export function precioArs(valor) {
-  if (!CONFIG.mostrarArs || !CONFIG.cotizacion) return '';
-  return `$ ${formato.format(Math.round((valor * CONFIG.cotizacion) / 100) * 100)}`;
+  return enPesos() ? precioUsd(valor) : '';
 }
 
 export function textoMl(ml) {

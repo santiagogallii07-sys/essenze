@@ -21,6 +21,22 @@ export function ars(n) {
   return `$ ${fmt0.format(Math.round(Number(n) || 0))}`;
 }
 
+// El panel muestra todo en pesos; los montos guardados en dólares se convierten con el dólar de Ajustes.
+let dolar = 0;
+export function fijarDolar(valor) {
+  dolar = Number(valor) || 0;
+}
+export function dolarActual() {
+  return dolar;
+}
+export function pesos(montoUsd) {
+  return dolar ? ars((Number(montoUsd) || 0) * dolar) : usd(montoUsd);
+}
+// Pesos grande con dólares chico al lado (para precios de catálogo, que se cargan en USD).
+export function precioDoble(montoUsd) {
+  return dolar ? `${ars(Math.round(((Number(montoUsd) || 0) * dolar) / 100) * 100)} <small class="usd">${usd(montoUsd)}</small>` : usd(montoUsd);
+}
+
 export function fecha(iso) {
   if (!iso) return '';
   const [a, m, d] = iso.slice(0, 10).split('-');
@@ -158,8 +174,8 @@ export async function conCarga(boton, fn) {
 }
 
 export const TIPOS = {
-  'arabe-masculino': 'Árabe masculino',
-  'arabe-femenino': 'Árabe femenino',
+  'arabe-masculino': 'Árabes masculinos',
+  'arabe-femenino': 'Árabes femeninos',
   'disenador-masculino': 'Diseñador masculino',
   'disenador-femenino': 'Diseñador femenino',
   nicho: 'Nicho',

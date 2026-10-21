@@ -10,70 +10,129 @@ async function perfumes() {
   return cachePerfumes;
 }
 
-/* ---------- Descuentos ---------- */
+/* ---------- Precios y descuentos ---------- */
 
-export async function dialogoDescuento({ perfumes: lista, seleccion } = {}) {
+const ACCIONES = {
+  aplicar: { texto: 'Descuento', boton: 'Aplicar descuento', ayuda: 'El precio actual queda tachado y el nuevo con el descuento (redondeado al dólar).' },
+  quitar: { texto: 'Quitar descuento', boton: 'Quitar descuento', ayuda: 'Vuelve al precio anterior.' },
+  aumentar: { texto: 'Aumentar / bajar', boton: 'Aplicar cambio', ayuda: 'Suma un % o un monto en dólares al precio. Con número negativo, baja.' },
+  margen: { texto: 'Ganancia sobre costo', boton: 'Calcular precios', ayuda: 'Precio = costo + % de ganancia. Solo cambia los tamaños que tienen costo cargado.' },
+};
+
+/**
+ * Herramienta de precios: descuento, quitar descuento, aumento (% o USD) o ganancia sobre costo,
+ * para un perfume, la búsqueda actual, una marca, un tipo o todo el catálogo.
+ */
+export async function dialogoDescuento({ perfumes: lista, seleccion, perfume, accion = 'aplicar' } = {}) {
   const todos = lista || (await perfumes());
   const marcas = [...new Set(todos.map((p) => p.marca))].sort((a, b) => a.localeCompare(b, 'es'));
+  const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let elegido = perfume || null;
   const h = hoja({
-    titulo: 'Descuentos',
-    ancho: 520,
+    titulo: 'Precios y descuentos',
+    ancho: 560,
     html: `
-      <div class="segmentado" role="radiogroup" aria-label="Acción">
-        <label><input type="radio" name="accion" value="aplicar" checked><span>Aplicar descuento</span></label>
-        <label><input type="radio" name="accion" value="quitar"><span>Quitar descuento</span></label>
-      </div>
+      <label class="campo"><span>¿Qué querés hacer?</span>
+        <select data-accion>${Object.entries(ACCIONES).map(([k, v]) => `<option value="${k}" ${k === accion ? 'selected' : ''}>${v.texto}</option>`).join('')}</select>
+        <small class="campo__ayuda" data-ayuda></small>
+      </label>
       <label class="campo"><span>¿A qué perfumes?</span>
         <select data-alcance>
-          ${seleccion ? `<option value="seleccion">Los ${seleccion.length} de la búsqueda actual</option>` : ''}
-          <option value="marca">Una marca</option>
+          <option value="uno" ${perfume ? 'selected' : ''}>Un perfume</option>
+          ${seleccion ? `<option value="seleccion" ${perfume ? '' : 'selected'}>Los ${seleccion.length} de la búsqueda actual</option>` : ''}
+          <option value="marca" ${!perfume && !seleccion ? 'selected' : ''}>Una marca</option>
           <option value="tipo">Un tipo</option>
+          <option value="todos">Todo el catálogo</option>
         </select>
       </label>
-      <label class="campo" data-campo-marca ${seleccion ? 'hidden' : ''}><span>Marca</span>
+      <div class="campo selector-perfume" data-campo-uno>
+        <span>Perfume</span>
+        <input class="entrada" data-buscar placeholder="Buscar marca o nombre…" autocomplete="off" value="${elegido ? escapar(`${elegido.marca} ${elegido.nombre}`) : ''}">
+        <div class="resultados-busqueda" data-resultados hidden></div>
+      </div>
+      <label class="campo" data-campo-marca><span>Marca</span>
         <select data-marca>${marcas.map((m) => `<option>${escapar(m)}</option>`).join('')}</select>
       </label>
-      <label class="campo" data-campo-tipo hidden><span>Tipo</span>
+      <label class="campo" data-campo-tipo><span>Tipo</span>
         <select data-tipo>${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       </label>
-      <label class="campo" data-campo-porcentaje><span>Descuento (%)</span>
-        <input type="number" inputmode="numeric" min="1" max="89" value="15" data-porcentaje>
-        <small class="campo__ayuda">El precio actual queda tachado y el nuevo se redondea al dólar.</small>
-      </label>
+      <div class="form-grilla form-grilla--2" data-campo-valor>
+        <label class="campo"><span data-rotulo-valor>Porcentaje</span><input type="number" inputmode="decimal" step="0.5" value="15" data-valor></label>
+        <div class="campo" data-campo-modo><span class="campo__rotulo">En</span>
+          <div class="segmentado"><label><input type="radio" name="modo" value="porcentaje" checked><span>%</span></label><label><input type="radio" name="modo" value="monto"><span>USD</span></label></div>
+        </div>
+      </div>
       <p class="campo__ayuda" data-resumen></p>`,
     pie: '<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-aplicar>Aplicar</button>',
   });
   const d = h.dialogo;
-  const alcance = d.querySelector('[data-alcance]');
-  const actualizar = () => {
-    const a = alcance.value;
-    const quitar = d.querySelector('[name=accion]:checked').value === 'quitar';
-    d.querySelector('[data-campo-marca]').hidden = a !== 'marca';
-    d.querySelector('[data-campo-tipo]').hidden = a !== 'tipo';
-    d.querySelector('[data-campo-porcentaje]').hidden = quitar;
-    const afectados = a === 'seleccion' ? seleccion.length
-      : a === 'marca' ? todos.filter((p) => p.marca === d.querySelector('[data-marca]').value).length
-        : todos.filter((p) => p.tipo === d.querySelector('[data-tipo]').value).length;
-    d.querySelector('[data-resumen]').textContent = `${quitar ? 'Vuelve al precio anterior en' : 'Se aplica a'} ${afectados} ${afectados === 1 ? 'perfume' : 'perfumes'}.`;
-    d.querySelector('[data-aplicar]').textContent = quitar ? 'Quitar descuento' : 'Aplicar';
+  const $ = (s) => d.querySelector(s);
+  const resultados = $('[data-resultados]');
+
+  const afectados = () => {
+    const a = $('[data-alcance]').value;
+    if (a === 'uno') return elegido ? [elegido] : [];
+    if (a === 'seleccion') return seleccion;
+    if (a === 'marca') return todos.filter((p) => p.marca === $('[data-marca]').value);
+    if (a === 'tipo') return todos.filter((p) => p.tipo === $('[data-tipo]').value);
+    return todos;
   };
+
+  function actualizar() {
+    const acc = $('[data-accion]').value;
+    const a = $('[data-alcance]').value;
+    $('[data-ayuda]').textContent = ACCIONES[acc].ayuda;
+    $('[data-campo-uno]').hidden = a !== 'uno';
+    $('[data-campo-marca]').hidden = a !== 'marca';
+    $('[data-campo-tipo]').hidden = a !== 'tipo';
+    $('[data-campo-valor]').hidden = acc === 'quitar';
+    $('[data-campo-modo]').hidden = acc !== 'aumentar';
+    $('[data-rotulo-valor]').textContent = acc === 'aplicar' ? 'Descuento (%)' : acc === 'margen' ? 'Ganancia (%)' : 'Cuánto';
+    const n = afectados().length;
+    $('[data-resumen]').textContent = n ? `Se aplica a ${n} ${n === 1 ? 'perfume' : 'perfumes'}.` : 'Elegí un perfume.';
+    $('[data-aplicar]').textContent = ACCIONES[acc].boton;
+  }
+
+  $('[data-buscar]').addEventListener('input', (e) => {
+    elegido = null;
+    const q = norm(e.target.value).split(/\s+/).filter(Boolean);
+    const r = q.length ? todos.filter((p) => q.every((w) => norm(`${p.marca} ${p.nombre}`).includes(w))).slice(0, 8) : [];
+    resultados.hidden = !r.length;
+    resultados.innerHTML = r.map((p) => `<button type="button" data-id="${escapar(p.id)}">${miniatura(p)}<span>${escapar(p.marca)} · ${escapar(p.nombre)}</span></button>`).join('');
+    actualizar();
+  });
+  resultados.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-id]');
+    if (!b) return;
+    elegido = todos.find((p) => p.id === b.dataset.id);
+    $('[data-buscar]').value = `${elegido.marca} ${elegido.nombre}`;
+    resultados.hidden = true;
+    actualizar();
+  });
   d.addEventListener('change', actualizar);
   actualizar();
-  d.querySelector('[data-aplicar]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
-    const a = alcance.value;
+
+  $('[data-aplicar]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
+    const a = $('[data-alcance]').value;
+    const lista = afectados();
+    if (!lista.length) return aviso('Elegí a qué perfumes aplicarlo.', 'error');
+    const acc = $('[data-accion]').value;
+    if (a === 'todos' && !(await confirmar(`Esto cambia los precios de los ${lista.length} perfumes del catálogo.`, { aceptar: 'Sí, aplicar a todos' }))) return undefined;
     const cuerpo = {
-      accion: d.querySelector('[name=accion]:checked').value,
-      porcentaje: Number(d.querySelector('[data-porcentaje]').value),
-      ...(a === 'seleccion' ? { ids: seleccion.map((p) => p.id) } : a === 'marca' ? { marca: d.querySelector('[data-marca]').value } : { tipo: d.querySelector('[data-tipo]').value }),
+      accion: acc,
+      valor: Number($('[data-valor]').value),
+      modo: d.querySelector('[name=modo]:checked').value,
+      ...(a === 'uno' || a === 'seleccion' ? { ids: lista.map((p) => p.id) } : a === 'marca' ? { marca: $('[data-marca]').value } : a === 'tipo' ? { tipo: $('[data-tipo]').value } : { todos: true }),
     };
     try {
       const r = await api('/descuentos', { metodo: 'POST', datos: cuerpo });
       cachePerfumes = null;
-      aviso(`${cuerpo.accion === 'quitar' ? 'Descuento quitado' : 'Descuento aplicado'} en ${r.perfumes} ${r.perfumes === 1 ? 'perfume' : 'perfumes'}`);
+      aviso(`Precios actualizados en ${r.perfumes} ${r.perfumes === 1 ? 'perfume' : 'perfumes'}`);
       h.cerrar(true);
     } catch (err) {
       avisoError(err);
     }
+    return undefined;
   }));
   return h.cerrada.then((v) => v === true);
 }
@@ -235,9 +294,9 @@ export async function montar({ vista, app }) {
       </section>
       <section class="tarjeta-admin">
         <h2 class="tarjeta-admin__titulo">Descuentos en precios</h2>
-        <p class="campo__ayuda">Hoy hay <strong>${enOferta()}</strong> perfumes con precio tachado. Aplicá un % a una marca o tipo de una sola vez, o quitalo cuando termine la promo.</p>
+        <p class="campo__ayuda">Hoy hay <strong>${enOferta()}</strong> perfumes con precio tachado. Aplicá un descuento a un perfume, una marca o un tipo; subí precios en % o en dólares, o calculalos con tu % de ganancia sobre el costo.</p>
         <div class="botonera" style="margin-top:12px">
-          <button class="boton boton--contorno" type="button" data-descuento>${icono('porcentaje')} Aplicar o quitar descuento</button>
+          <button class="boton boton--contorno" type="button" data-descuento>${icono('porcentaje')} Precios y descuentos</button>
           <a class="boton boton--suave" href="#/perfumes?filtro=oferta">Ver perfumes en oferta</a>
         </div>
       </section>`;

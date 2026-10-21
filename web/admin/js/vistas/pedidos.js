@@ -1,6 +1,6 @@
 // Pedidos de la web y ventas manuales: estados, cobro (va a la caja y descuenta stock) y WhatsApp al cliente.
 import { api } from '../api.js';
-import { icono, escapar, usd, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar } from '../ui.js';
+import { icono, escapar, usd, ars, pesos, precioDoble, dolarActual, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar } from '../ui.js';
 import { iconoWhatsapp } from '/js/iconos.js';
 
 const METODOS = ['Efectivo', 'Transferencia', 'Mercado Pago', 'Tarjeta', 'Dólares en efectivo', 'Otro'];
@@ -15,18 +15,18 @@ function tarjeta(p) {
       <div class="tarjeta-pedido__cabeza">
         <span class="tarjeta-pedido__numero">${escapar(p.id)}</span>
         <span class="estado estado--${p.estado}">${ESTADOS[p.estado]}</span>
-        <span class="tarjeta-pedido__total">${usd(p.total)}</span>
+        <span class="tarjeta-pedido__total">${precioDoble(p.total)}</span>
       </div>
       <div class="tarjeta-pedido__cliente">
-        <span>${escapar(p.nombre || 'Venta sin nombre')} <span class="origen">· ${p.origen === 'manual' ? 'venta manual' : 'web'}</span></span>
+        <span>${escapar(p.nombre || 'Venta sin nombre')} <span class="origen">· ${{ manual: 'venta manual', excel: 'planilla', web: 'web' }[p.origen] || p.origen}</span></span>
         <small>${[p.telefono, p.email].filter(Boolean).map(escapar).join(' · ')}${p.telefono || p.email ? ' · ' : ''}${fechaHora(p.creado)}</small>
       </div>
       <ul class="tarjeta-pedido__items">
-        ${p.items.map((i) => `<li><span>${i.cantidad} ×</span><span>${escapar(i.marca)} ${escapar(i.nombre)}${i.ml ? ` · ${i.ml} ml` : ''}</span><span>${usd(i.precio * i.cantidad)}</span></li>`).join('')}
+        ${p.items.map((i) => `<li><span>${i.cantidad} ×</span><span>${escapar(i.marca)} ${escapar(i.nombre)}${i.ml ? ` · ${i.ml} ml` : ''}</span><span>${pesos(i.precio * i.cantidad)}</span></li>`).join('')}
       </ul>
       ${p.comentario ? `<p class="tarjeta-pedido__notas">Cliente: ${escapar(p.comentario)}</p>` : ''}
       ${p.notas ? `<p class="tarjeta-pedido__notas">Nota interna: ${escapar(p.notas)}</p>` : ''}
-      ${p.cobrado !== null && p.cobrado !== undefined ? `<p class="cifra__nota">Cobrado ${usd(p.cobrado)}${p.metodo_pago ? ` · ${escapar(p.metodo_pago)}` : ''}${p.costo_total ? ` · ganancia ${usd(p.cobrado - p.costo_total)}` : ''}</p>` : ''}
+      ${p.cobrado !== null && p.cobrado !== undefined ? `<p class="cifra__nota">Cobrado ${pesos(p.cobrado)}${p.metodo_pago ? ` · ${escapar(p.metodo_pago)}` : ''}${p.costo_total ? ` · ganancia ${pesos(p.cobrado - p.costo_total)}` : ''}</p>` : ''}
       <div class="tarjeta-pedido__acciones">
         ${wa ? `<a class="boton boton--suave boton--chico" href="https://wa.me/${wa}?text=${saludo}" target="_blank" rel="noopener">${iconoWhatsapp()} WhatsApp</a>` : ''}
         ${SIGUIENTE[p.estado] ? `<button class="boton boton--lleno boton--chico" type="button" data-siguiente>${TEXTO_SIGUIENTE[p.estado]}</button>` : ''}
@@ -40,14 +40,14 @@ function dialogoCobro(pedido) {
     titulo: `Cobrar ${pedido.id}`,
     ancho: 460,
     html: `
-      <label class="campo"><span>Monto cobrado (USD)</span><input type="number" inputmode="decimal" step="0.01" min="0" value="${pedido.total}" data-monto></label>
+      ${dolarActual() ? `<label class="campo"><span>Monto cobrado ($)</span><input type="number" inputmode="decimal" step="1" min="0" value="${Math.round((pedido.total * dolarActual()) / 100) * 100}" data-monto data-pesos></label>` : `<label class="campo"><span>Monto cobrado (USD)</span><input type="number" inputmode="decimal" step="0.01" min="0" value="${pedido.total}" data-monto></label>`}
       <label class="campo"><span>Forma de pago</span><select data-metodo>${METODOS.map((m) => `<option ${pedido.metodo_pago === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
       <label class="campo"><span>Fecha del cobro</span><input type="date" value="${hoy()}" data-fecha></label>
       <p class="campo__ayuda">Se registra el ingreso en la caja y se descuenta el stock de los perfumes que lo controlan.</p>`,
     pie: '<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-ok>Registrar cobro</button>',
   });
   h.dialogo.querySelector('[data-ok]').addEventListener('click', () => h.cerrar({
-    cobrado: h.dialogo.querySelector('[data-monto]').value,
+    [h.dialogo.querySelector('[data-pesos]') ? 'cobradoArs' : 'cobrado']: h.dialogo.querySelector('[data-monto]').value,
     metodo_pago: h.dialogo.querySelector('[data-metodo]').value,
     fecha: h.dialogo.querySelector('[data-fecha]').value,
   }));
@@ -74,7 +74,7 @@ async function dialogoVenta() {
         <label class="campo"><span>Teléfono (opcional)</span><input data-telefono type="tel" inputmode="tel" autocomplete="off"></label>
         <label class="campo"><span>Forma de pago</span><select data-metodo>${METODOS.map((m) => `<option>${m}</option>`).join('')}</select></label>
         <label class="campo"><span>Fecha</span><input type="date" value="${hoy()}" data-fecha></label>
-        <label class="campo ancho-total"><span>Total cobrado (USD)</span><input type="number" inputmode="decimal" step="0.01" min="0" data-total placeholder="Se calcula solo"></label>
+        <label class="campo ancho-total"><span>Total cobrado (${dolarActual() ? '$' : 'USD'})</span><input type="number" inputmode="decimal" step="0.01" min="0" data-total placeholder="Se calcula solo"></label>
       </div>`,
     pie: '<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-guardar>Registrar venta</button>',
   });
@@ -100,7 +100,7 @@ async function dialogoVenta() {
           </div>
         </div>`;
     }).join('');
-    d.querySelector('[data-total]').placeholder = lineas.length ? `${usd(total())} (calculado)` : 'Se calcula solo';
+    d.querySelector('[data-total]').placeholder = lineas.length ? `${pesos(total())} (calculado)` : 'Se calcula solo';
   }
   buscar.addEventListener('input', demorar(() => {
     const q = norm(buscar.value).split(/\s+/).filter(Boolean);
@@ -129,7 +129,7 @@ async function dialogoVenta() {
       lineas[i].precio = p.presentaciones.find((x) => x.ml === lineas[i].ml)?.precio ?? lineas[i].precio;
       pintarLineas();
     } else {
-      d.querySelector('[data-total]').placeholder = `${usd(total())} (calculado)`;
+      d.querySelector('[data-total]').placeholder = `${pesos(total())} (calculado)`;
     }
   });
   contLineas.addEventListener('click', (e) => {
@@ -148,7 +148,7 @@ async function dialogoVenta() {
           telefono: d.querySelector('[data-telefono]').value,
           metodo_pago: d.querySelector('[data-metodo]').value,
           fecha: d.querySelector('[data-fecha]').value,
-          cobrado: d.querySelector('[data-total]').value,
+          [dolarActual() ? 'cobradoArs' : 'cobrado']: d.querySelector('[data-total]').value,
         },
       });
       aviso('Venta registrada');

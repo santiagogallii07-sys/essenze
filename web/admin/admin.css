@@ -789,3 +789,7 @@ details.tarjeta-admin summary::-webkit-details-marker { display: none; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   .hoja-admin__panel, .barra-guardar { transition-duration: 0.01ms !important; }
 }
+
+/* Dólares chicos al lado del precio en pesos */
+.usd { font-size: 0.78em; color: var(--texto-3); margin-left: 4px; font-family: var(--cuerpo); letter-spacing: 0; font-weight: 400; }
+.movimiento__monto small { display: block; font-size: 0.74rem; color: var(--texto-3); }

@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { icono, escapar, usd, ars, fecha, nombreMes, hoja, confirmar, aviso, avisoError, conCarga, hoy } from '../ui.js';
 import { graficoMeses } from './resumen.js';
+import { importarVentas } from '../ventas-excel.js';
 
 function moverMes(mes, delta) {
   const [a, m] = mes.split('-').map(Number);
@@ -9,7 +10,7 @@ function moverMes(mes, delta) {
 }
 
 async function dialogoMovimiento({ movimiento, categorias, cotizacion, tipoInicial = 'egreso' }) {
-  const m = movimiento || { tipo: tipoInicial, categoria: '', monto: '', moneda: 'USD', fecha: hoy(), descripcion: '' };
+  const m = movimiento || { tipo: tipoInicial, categoria: '', monto: '', moneda: cotizacion ? 'ARS' : 'USD', fecha: hoy(), descripcion: '' };
   const montoInicial = m.moneda === 'ARS' ? m.monto_original : m.monto;
   const h = hoja({
     titulo: movimiento ? 'Editar movimiento' : 'Nuevo movimiento',
@@ -95,7 +96,13 @@ export async function montar({ vista, consulta, app }) {
   nuevo.className = 'boton boton--lleno boton--chico';
   nuevo.type = 'button';
   nuevo.innerHTML = `${icono('mas')}<span>Movimiento</span>`;
-  app.acciones(nuevo);
+  const importar = document.createElement('button');
+  importar.className = 'boton-icono';
+  importar.type = 'button';
+  importar.setAttribute('aria-label', 'Importar ventas desde Excel');
+  importar.title = 'Importar ventas desde Excel';
+  importar.innerHTML = icono('tabla');
+  app.acciones([importar, nuevo]);
 
   let mes = sessionStorage.getItem('admin-caja-mes') || hoy().slice(0, 7);
   let datos;
@@ -110,6 +117,8 @@ export async function montar({ vista, consulta, app }) {
 
   function pintar() {
     const c = resumen.caja;
+    const fmt = (n) => (resumen.moneda === 'ARS' ? ars(n) : usd(n));
+    const enPesos = (m) => (m.moneda === 'ARS' ? m.monto_original : m.monto * (m.cotizacion || resumen.dolar));
     const maxCat = Math.max(1, ...resumen.egresosPorCategoria.map((x) => x.total));
     const esActual = mes === hoy().slice(0, 7);
     vista.innerHTML = `
@@ -120,21 +129,21 @@ export async function montar({ vista, consulta, app }) {
       </div>
 
       <div class="cifras">
-        <div class="cifra cifra--positiva"><span class="cifra__rotulo">Ingresos</span><span class="cifra__valor">${usd(c.ingresos)}</span><span class="cifra__nota">Ventas ${usd(c.ventas)}</span></div>
-        <div class="cifra cifra--negativa"><span class="cifra__rotulo">Egresos</span><span class="cifra__valor">${usd(c.egresos)}</span><span class="cifra__nota">Gastos y compras</span></div>
-        <div class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}"><span class="cifra__rotulo">Saldo</span><span class="cifra__valor">${usd(c.saldo)}</span><span class="cifra__nota">${cotizacion ? `≈ ${ars(c.saldo * cotizacion)}` : 'Ingresos − egresos'}</span></div>
-        <div class="cifra"><span class="cifra__rotulo">Margen de ventas</span><span class="cifra__valor">${usd(c.margen)}</span><span class="cifra__nota">${c.ventas ? `${Math.round((c.margen / c.ventas) * 100)}% · costo ${usd(c.costoVendido)}` : 'Sin ventas'}</span></div>
+        <div class="cifra cifra--positiva"><span class="cifra__rotulo">Ingresos</span><span class="cifra__valor">${fmt(c.ingresos)}</span><span class="cifra__nota">Ventas ${fmt(c.ventas)} · ${c.unidades} perfumes</span></div>
+        <div class="cifra cifra--negativa"><span class="cifra__rotulo">Egresos</span><span class="cifra__valor">${fmt(c.egresos)}</span><span class="cifra__nota">Comisiones ${fmt(c.comisiones)}</span></div>
+        <div class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}"><span class="cifra__rotulo">Saldo</span><span class="cifra__valor">${fmt(c.saldo)}</span><span class="cifra__nota">${resumen.moneda === 'ARS' && resumen.dolar ? usd(c.saldo / resumen.dolar) : 'Ingresos − egresos'}</span></div>
+        <div class="cifra"><span class="cifra__rotulo">Ganancia de ventas</span><span class="cifra__valor">${fmt(c.margen)}</span><span class="cifra__nota">${c.ventas ? `${Math.round((c.margen / c.ventas) * 100)}% · costo ${fmt(c.costoVendido)}` : 'Sin ventas'}</span></div>
       </div>
 
       <div class="grilla-admin grilla-admin--2" style="margin-top:12px">
         <section class="tarjeta-admin">
           <h3 class="tarjeta-admin__titulo">Últimos 6 meses</h3>
-          ${graficoMeses(resumen.meses)}
+          ${graficoMeses(resumen.meses, fmt)}
         </section>
         <section class="tarjeta-admin">
           <h3 class="tarjeta-admin__titulo">Gastos por categoría</h3>
           ${resumen.egresosPorCategoria.length ? resumen.egresosPorCategoria.map((x) => `
-            <div class="barra-h"><span>${escapar(x.categoria)}</span><span class="num">${usd(x.total)}</span>
+            <div class="barra-h"><span>${escapar(x.categoria)}</span><span class="num">${fmt(x.total)}</span>
               <span class="barra-h__pista"><span style="width:${(x.total / maxCat) * 100}%"></span></span></div>`).join('') : '<p class="cifra__nota">Sin gastos este mes.</p>'}
         </section>
       </div>
@@ -144,7 +153,7 @@ export async function montar({ vista, consulta, app }) {
         ${datos.movimientos.length ? `<ul class="lista-admin">${datos.movimientos.map((m) => `
           <li><button class="movimiento movimiento--${m.tipo}" type="button" data-mov="${m.id}">
             <span class="movimiento__titulo">${escapar(m.descripcion || m.categoria)}</span>
-            <span class="movimiento__monto">${m.tipo === 'egreso' ? '−' : '+'}${usd(m.monto)}${m.moneda === 'ARS' ? `<small>${ars(m.monto_original)}</small>` : ''}</span>
+            <span class="movimiento__monto">${m.tipo === 'egreso' ? '−' : '+'}${resumen.moneda === 'ARS' ? ars(enPesos(m)) : usd(m.monto)}<small>${usd(m.monto)}</small></span>
             <span class="movimiento__sub">${fecha(m.fecha)} · ${escapar(m.categoria)}${m.pedido ? ' · desde pedido' : ''}</span>
           </button></li>`).join('')}</ul>` : `<div class="vacio-admin">${icono('caja')}<p>Sin movimientos en ${nombreMes(mes).toLowerCase()}.</p><p class="vacio-admin__detalle">Las ventas cobradas se suman solas. Cargá acá compras de mercadería, envíos, publicidad y otros gastos.</p></div>`}
       </section>`;
@@ -173,6 +182,9 @@ export async function montar({ vista, consulta, app }) {
   });
   const recargar = () => cargar();
   document.addEventListener('caja:recargar', recargar);
+  importar.addEventListener('click', async () => {
+    if (await importarVentas()) cargar();
+  });
   nuevo.addEventListener('click', async () => {
     if (await dialogoMovimiento({ categorias: datos.categorias, cotizacion })) cargar();
   });

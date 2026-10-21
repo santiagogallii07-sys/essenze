@@ -1,13 +1,13 @@
 // Inicio del panel: lo importante del mes de un vistazo.
 import { api } from '../api.js';
-import { icono, escapar, usd, nombreMes, fechaHora, ESTADOS, hoy } from '../ui.js';
+import { icono, escapar, usd, ars, nombreMes, fechaHora, ESTADOS, hoy } from '../ui.js';
 
-export function graficoMeses(meses) {
+export function graficoMeses(meses, fmt = usd) {
   const maximo = Math.max(1, ...meses.flatMap((m) => [m.ingresos, m.egresos]));
   return `
     <div class="barras" role="img" aria-label="Ingresos y egresos de los últimos meses">
       ${meses.map((m, i) => `
-        <div class="barras__mes" title="${nombreMes(m.mes)}: ingresos ${usd(m.ingresos)}, egresos ${usd(m.egresos)}">
+        <div class="barras__mes" title="${nombreMes(m.mes)}: ingresos ${fmt(m.ingresos)}, egresos ${fmt(m.egresos)}">
           <div class="barras__pila">
             <span class="barras__barra barras__barra--ingreso" style="height:${(m.ingresos / maximo) * 100}%;animation-delay:${i * 50}ms"></span>
             <span class="barras__barra barras__barra--egreso" style="height:${(m.egresos / maximo) * 100}%;animation-delay:${i * 50 + 25}ms"></span>
@@ -27,6 +27,7 @@ export async function montar({ vista, app }) {
   app.titulo('Inicio');
   const r = await api('/resumen');
   const c = r.caja;
+  const fmt = (n) => (r.moneda === 'ARS' ? ars(n) : usd(n));
   const nuevos = r.pedidos.nuevo || 0;
   const cat = r.catalogo;
   const fechaLarga = new Date(`${hoy()}T12:00:00`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -45,18 +46,18 @@ export async function montar({ vista, app }) {
       </a>
       <a class="cifra" href="#/caja">
         <span class="cifra__rotulo">Ventas de ${nombreMes(r.mes).split(' ')[0].toLowerCase()}</span>
-        <span class="cifra__valor">${usd(c.ventas)}</span>
+        <span class="cifra__valor">${fmt(c.ventas)}</span>
         <span class="cifra__nota">${c.ventasCobradas} ${c.ventasCobradas === 1 ? 'venta cobrada' : 'ventas cobradas'}</span>
       </a>
       <a class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}" href="#/caja">
         <span class="cifra__rotulo">Saldo del mes</span>
-        <span class="cifra__valor">${usd(c.saldo)}</span>
+        <span class="cifra__valor">${fmt(c.saldo)}</span>
         <span class="cifra__nota">Ingresos − egresos</span>
       </a>
       <a class="cifra" href="#/caja">
         <span class="cifra__rotulo">Margen de ventas</span>
-        <span class="cifra__valor">${usd(c.margen)}</span>
-        <span class="cifra__nota">${c.costoVendido ? `Costo ${usd(c.costoVendido)}` : 'Cargá costos para verlo'}</span>
+        <span class="cifra__valor">${fmt(c.margen)}</span>
+        <span class="cifra__nota">${c.costoVendido ? `Costo ${fmt(c.costoVendido)} · comisión ${fmt(c.comisiones)}` : 'Cargá costos para verlo'}</span>
       </a>
     </div>
 
@@ -70,7 +71,7 @@ export async function montar({ vista, app }) {
     <div class="grilla-admin grilla-admin--2" style="margin-top:12px">
       <section class="tarjeta-admin">
         <h3 class="tarjeta-admin__titulo">Últimos 6 meses <a href="#/caja">Ver caja</a></h3>
-        ${graficoMeses(r.meses)}
+        ${graficoMeses(r.meses, fmt)}
       </section>
 
       <section class="tarjeta-admin">
@@ -82,7 +83,7 @@ export async function montar({ vista, app }) {
               <span class="fila-admin__sub">${escapar(p.id)} · ${fechaHora(p.creado)}</span>
             </span>
             <span class="estado estado--${p.estado}">${ESTADOS[p.estado]}</span>
-            <span class="fila-admin__valor">${usd(p.total)}</span>
+            <span class="fila-admin__valor">${fmt(p.total)}</span>
           </a></li>`).join('')}</ul>` : '<p class="cifra__nota">Todavía no hay pedidos. Cuando un cliente mande uno desde la web, aparece acá.</p>'}
       </section>
 
@@ -100,8 +101,8 @@ export async function montar({ vista, app }) {
       <section class="tarjeta-admin">
         <h3 class="tarjeta-admin__titulo">Más vendidos del mes</h3>
         ${r.masVendidos.length ? `<ul class="lista-admin">${r.masVendidos.map((m) => `
-          <li><a class="fila-admin" href="#/perfumes/${encodeURIComponent(m.id)}">
-            <span class="fila-admin__texto"><span class="fila-admin__titulo">${escapar(m.nombre)}</span><span class="fila-admin__sub">${escapar(m.marca)}</span></span>
+          <li><a class="fila-admin" href="${m.id ? `#/perfumes/${encodeURIComponent(m.id)}` : '#/pedidos'}">
+            <span class="fila-admin__texto"><span class="fila-admin__titulo">${escapar(m.nombre)}</span><span class="fila-admin__sub">${escapar(m.marca || 'Planilla de ventas')}</span></span>
             <span class="fila-admin__valor num">${m.unidades} u.</span>
           </a></li>`).join('')}</ul>` : '<p class="cifra__nota">Aparecen cuando marques pedidos como cobrados.</p>'}
         ${r.stockBajo.length ? `

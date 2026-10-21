@@ -1,6 +1,6 @@
 // Panel de administración: ingreso, navegación y enrutado por #/seccion.
 import { api } from './api.js';
-import { icono, escapar, hoja, avisoError } from './ui.js';
+import { icono, escapar, hoja, avisoError, fijarDolar } from './ui.js';
 
 const SECCIONES = [
   { id: 'resumen', texto: 'Inicio', icono: 'inicio', modulo: './vistas/resumen.js' },
@@ -135,6 +135,9 @@ function mostrarIngreso() {
 async function mostrarPanel() {
   el.ingreso.hidden = true;
   el.panel.hidden = false;
+  try {
+    fijarDolar((await api('/ajustes')).cotizacion);
+  } catch { /* sin dólar: se muestra en USD */ }
   rutaActual = '';
   await enrutar();
   contarPedidos();

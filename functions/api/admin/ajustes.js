@@ -13,6 +13,7 @@ export const onRequestPut = manejar(async ({ request, env }) => {
     instagram: texto(d.instagram, 60).replace(/^@/, ''),
     cotizacion: String(Math.max(0, numero(d.cotizacion, 0))),
     mostrar_ars: d.mostrarArs ? '1' : '0',
+    comision_usd: String(Math.max(0, numero(d.comision, 3))),
   };
   await env.DB.batch([
     ...Object.entries(valores).map(([k, v]) =>
