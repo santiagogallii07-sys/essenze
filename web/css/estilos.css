@@ -1689,3 +1689,62 @@ button, .boton, .chip, .pestana, .tamano, .tamano-rapido, .boton-circular, .acor
 @media (prefers-reduced-motion: reduce) {
   .cartel--banner.es-activo .cartel__banner img { animation: none; }
 }
+
+/* ==========================================================================
+   Fotos sobre fondo blanco (Ajustes → "Fondo blanco"). Las fotos ya están recortadas:
+   se apoyan sobre un lienzo blanco cálido, centradas, como foto de estudio.
+   El lienzo va enmarcado dentro de la tarjeta oscura (como una lámina en una vitrina).
+   ========================================================================== */
+
+[data-fotos='blanco'] {
+  --lienzo: #fbf9f5;
+  --lienzo-borde: rgba(201, 163, 92, 0.35);
+}
+
+/* Tarjetas */
+[data-fotos='blanco'] .tarjeta__imagen {
+  margin: 8px 8px 0;
+  aspect-ratio: 10 / 11;
+  background: var(--lienzo);
+  border: 1px solid var(--lienzo-borde);
+}
+[data-fotos='blanco'] .tarjeta__imagen::after { display: none; }
+[data-fotos='blanco'] .tarjeta__imagen .foto--recorte {
+  width: 82%;
+  height: 82%;
+  margin: 0;
+  filter: drop-shadow(0 12px 14px rgba(60, 45, 20, 0.16));
+}
+[data-fotos='blanco'] .tarjeta__imagen--foto { background: var(--lienzo); }
+[data-fotos='blanco'] .tarjeta__imagen--foto .foto--completa { object-fit: contain; }
+[data-fotos='blanco'] .tarjeta__imagen .frasco { height: 80%; margin-top: 4%; }
+[data-fotos='blanco'] .tarjeta__destello {
+  background: linear-gradient(105deg, transparent 38%, rgba(201, 163, 92, 0.12) 48%, rgba(227, 194, 126, 0.24) 50%, rgba(201, 163, 92, 0.12) 52%, transparent 62%);
+}
+[data-fotos='blanco'] .sello--apagado { background: var(--lienzo); color: #6b6253; border-color: rgba(107, 98, 83, 0.4); }
+[data-fotos='blanco'] .tarjeta--sin-stock .tarjeta__imagen .foto { opacity: 0.55; }
+@media (hover: hover) and (pointer: fine) {
+  [data-fotos='blanco'] .tarjeta:hover .tarjeta__imagen { border-color: var(--oro); }
+}
+
+/* Ficha: el visor pasa a ser un lienzo blanco con marco dorado fino */
+[data-fotos='blanco'] .visor {
+  background: var(--lienzo);
+  border: 1px solid var(--lienzo-borde);
+  box-shadow: 0 0 0 8px var(--superficie), 0 0 0 9px var(--linea);
+}
+[data-fotos='blanco'] .visor::before { display: none; }
+[data-fotos='blanco'] .visor__relieve img { filter: drop-shadow(0 22px 26px rgba(60, 45, 20, 0.18)); }
+[data-fotos='blanco'] .visor__relieve.es-completa img { border: 0; object-fit: contain; }
+[data-fotos='blanco'] .visor__brillo { mix-blend-mode: multiply; background: radial-gradient(circle at var(--luz-x, 50%) var(--luz-y, 30%), rgba(201, 163, 92, 0.16), transparent 45%); }
+[data-fotos='blanco'] .visor__pista { color: #7d7466; }
+[data-fotos='blanco'] .visor__pista .icono { color: var(--oro-profundo); }
+
+/* Bolsa y elementos chicos */
+[data-fotos='blanco'] .linea__imagen { background: var(--lienzo); border-color: var(--lienzo-borde); }
+[data-fotos='blanco'] .linea__imagen .foto--recorte { filter: drop-shadow(0 4px 5px rgba(60, 45, 20, 0.15)); }
+
+@media (max-width: 860px) {
+  [data-fotos='blanco'] .tarjeta__imagen { margin: 6px 6px 0; }
+  [data-fotos='blanco'] .visor { box-shadow: none; border-inline: 0; }
+}

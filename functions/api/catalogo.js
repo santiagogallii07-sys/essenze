@@ -24,6 +24,7 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
     instagram: ajustes.instagram,
     cotizacion: ajustes.cotizacion,
     mostrarArs: ajustes.mostrarArs,
+    estiloFotos: ajustes.estiloFotos,
   };
   const perfumes = await listaJSON(env, { soloVisibles: true });
   const cuerpo = `{"ajustes":${JSON.stringify(publicos)},"ofertas":${JSON.stringify(vigentes)},"perfumes":${perfumes}}`;

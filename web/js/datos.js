@@ -13,6 +13,10 @@ export function obtenerCatalogo() {
   if (!catalogo) {
     catalogo = leer('/api/catalogo').then((d) => {
       Object.assign(CONFIG, d.ajustes || {});
+      // Estilo de las fotos (fondo blanco o escenario oscuro), elegido en el panel. Se recuerda para la próxima visita.
+      const estilo = CONFIG.estiloFotos === 'oscuro' ? 'oscuro' : 'blanco';
+      document.documentElement.dataset.fotos = estilo;
+      try { localStorage.setItem('essenze-fotos', estilo); } catch { /* sin almacenamiento */ }
       return d;
     });
     catalogo.catch(() => { catalogo = null; });

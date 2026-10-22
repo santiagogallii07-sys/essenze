@@ -14,6 +14,7 @@ export const onRequestPut = manejar(async ({ request, env }) => {
     cotizacion: String(Math.max(0, numero(d.cotizacion, 0))),
     mostrar_ars: d.mostrarArs ? '1' : '0',
     comision_usd: String(Math.max(0, numero(d.comision, 3))),
+    estilo_fotos: d.estiloFotos === 'oscuro' ? 'oscuro' : 'blanco',
   };
   await env.DB.batch([
     ...Object.entries(valores).map(([k, v]) =>

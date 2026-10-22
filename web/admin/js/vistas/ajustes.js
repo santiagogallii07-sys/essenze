@@ -17,6 +17,12 @@ export async function montar({ vista, app }) {
           <small class="campo__ayuda">Convierte los precios del catálogo (en dólares) a pesos en la tienda y en el panel. Cambialo cuando se mueva el dólar.</small></label>
         <label class="campo"><span>Comisión del pasante por perfume (USD)</span><input name="comision" type="number" inputmode="decimal" step="0.01" min="0" value="${a.comision ?? 3}">
           <small class="campo__ayuda">Se registra sola como gasto por cada perfume que cobrás (${ars((a.comision ?? 3) * (a.cotizacion || 0))} al dólar de hoy).</small></label>
+        <label class="campo ancho-total"><span>Fotos de los perfumes en la tienda</span>
+          <select name="estiloFotos">
+            <option value="blanco" ${a.estiloFotos !== 'oscuro' ? 'selected' : ''}>Fondo blanco (estilo estudio)</option>
+            <option value="oscuro" ${a.estiloFotos === 'oscuro' ? 'selected' : ''}>Escenario oscuro con luz dorada</option>
+          </select>
+          <small class="campo__ayuda">Cambia cómo se ven todas las fotos al instante, sin tocar las fotos.</small></label>
         <label class="interruptor ancho-total"><span class="interruptor__texto">Mostrar precios en pesos en la tienda<small>El precio en pesos va grande y el de dólares chico debajo (USD 100 = ${ars(100 * (a.cotizacion || 0))})</small></span>
           <input type="checkbox" name="mostrarArs" ${a.mostrarArs ? 'checked' : ''}><span class="interruptor__pista"></span></label>
       </div>
@@ -41,7 +47,7 @@ export async function montar({ vista, app }) {
     const f = e.currentTarget.elements;
     conCarga(e.currentTarget.querySelector('[type=submit]'), async () => {
       try {
-        const r = await api('/ajustes', { metodo: 'PUT', datos: { whatsapp: f.whatsapp.value, ciudad: f.ciudad.value, instagram: f.instagram.value, cotizacion: f.cotizacion.value, mostrarArs: f.mostrarArs.checked, comision: f.comision.value } });
+        const r = await api('/ajustes', { metodo: 'PUT', datos: { whatsapp: f.whatsapp.value, ciudad: f.ciudad.value, instagram: f.instagram.value, cotizacion: f.cotizacion.value, mostrarArs: f.mostrarArs.checked, comision: f.comision.value, estiloFotos: f.estiloFotos.value } });
         fijarDolar(r.cotizacion);
         aviso('Ajustes guardados');
       } catch (err) {
