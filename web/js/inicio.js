@@ -156,20 +156,68 @@ function montarCartelera(raiz, ofertas, porId, perfumes) {
   reiniciar();
 }
 
+// Revisa una foto recortada: sirve para el abanico si las esquinas son transparentes
+// (no es un rectángulo con fondo) y si es un frasco solo (más alto que ancho, sin caja al lado).
+function analizarRecorte(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 24;
+        c.height = 24;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, 24, 24);
+        const d = ctx.getImageData(0, 0, 24, 24).data;
+        const alfa = (x, y) => d[(y * 24 + x) * 4 + 3];
+        const esquinas = [alfa(0, 0), alfa(23, 0), alfa(0, 23), alfa(23, 23), alfa(0, 12), alfa(23, 12)];
+        let transparentes = 0;
+        for (let i = 3; i < d.length; i += 4) if (d[i] < 20) transparentes++;
+        const limpio = esquinas.every((a) => a < 25) && transparentes / 576 > 0.2;
+        resolve({ limpio, alto: img.naturalHeight / img.naturalWidth });
+      } catch {
+        resolve({ limpio: false, alto: 0 });
+      }
+    };
+    img.onerror = () => resolve({ limpio: false, alto: 0 });
+    img.src = src;
+  });
+}
+
+async function elegirMuestras(lista) {
+  // Se prueban hasta 30 candidatos (destacados primero) y se quedan los 3 mejores: limpios y altos.
+  const candidatos = lista
+    .filter((p) => p.imagen && p.fondo === 'recorte')
+    .sort((a, b) => Number(!!b.destacado) - Number(!!a.destacado))
+    .slice(0, 30);
+  const analizados = await Promise.all(candidatos.map(async (p) => ({ p, ...(await analizarRecorte(`/foto/${p.imagen}`)) })));
+  const limpios = analizados.filter((x) => x.limpio);
+  const solos = limpios.filter((x) => x.alto >= 1.15);
+  const elegidos = [...solos, ...limpios.filter((x) => !solos.includes(x))].slice(0, 3);
+  return elegidos.map((x) => x.p);
+}
+
 function montarTipos(raiz, perfumes) {
-  raiz.innerHTML = Object.entries(TIPOS).map(([clave, nombre]) => {
+  const entradas = Object.entries(TIPOS);
+  raiz.innerHTML = entradas.map(([clave, nombre]) => {
     const lista = perfumes.filter((p) => p.tipo === clave);
-    const muestras = lista.filter((p) => p.imagen).slice(0, 3);
     return `
     <li class="revelar">
       <a class="tipo" href="/catalogo?tipo=${clave}">
         <span class="tipo__nombre">${nombre}</span>
         <span class="tipo__cuenta">${lista.length} ${lista.length === 1 ? 'perfume' : 'perfumes'}</span>
-        <span class="tipo__frascos" aria-hidden="true">${muestras.map((p) => imagenPerfume(p)).join('')}</span>
+        <span class="tipo__frascos" aria-hidden="true" data-frascos="${clave}"></span>
         ${icono('flecha', 'tipo__flecha')}
       </a>
     </li>`;
   }).join('');
+  // Las muestras solo se ven al pasar el mouse: se eligen en segundo plano y sin apuro.
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  for (const [clave] of entradas) {
+    elegirMuestras(perfumes.filter((p) => p.tipo === clave)).then((muestras) => {
+      raiz.querySelector(`[data-frascos="${clave}"]`).innerHTML = muestras.map((p) => imagenPerfume(p)).join('');
+    });
+  }
 }
 
 // Cinta de marcas que se desplaza sola; se duplica para que el giro no tenga corte.
