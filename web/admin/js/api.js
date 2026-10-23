@@ -30,7 +30,9 @@ export async function api(ruta, { metodo = 'GET', datos, cuerpo, encabezados = {
   return respuesta;
 }
 
-export async function subirImagen(procesada) {
+// huella (opcional): sha-256 del archivo original; la misma foto subida dos veces no se duplica.
+// mini: copia chica de esa misma foto (para tarjetas y bolsa).
+export async function subirImagen(procesada, huella = '', { mini = false } = {}) {
   return api('/imagenes', {
     metodo: 'POST',
     cuerpo: procesada.blob,
@@ -39,6 +41,8 @@ export async function subirImagen(procesada) {
       'X-Fondo': procesada.fondo,
       'X-Ancho': String(procesada.ancho),
       'X-Alto': String(procesada.alto),
+      ...(huella ? { 'X-Huella': huella } : {}),
+      ...(huella && mini ? { 'X-Variante': 'mini' } : {}),
     },
   });
 }

@@ -9,6 +9,8 @@ import { icono } from './iconos.js';
 const MODEL_VIEWER = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js';
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
 const foto = (id) => `/foto/${id}`;
+// Copia chica de las fotos subidas en lote: suele estar en caché (viene de la tarjeta) y cubre la espera de la grande.
+const fotoChica = (id) => (/^h-/.test(id) ? `/foto/${id}-m` : '');
 
 function cargarModelViewer() {
   if (customElements.get('model-viewer')) return Promise.resolve();
@@ -29,14 +31,21 @@ function pista(texto, nombreIcono = 'girar') {
 // Foto única: se inclina en 3D hacia el puntero y un brillo dorado la recorre.
 function montarFoto(contenedor, perfume, titulo) {
   const recorte = perfume.imagen_fondo === 'recorte' || perfume.fondo === 'recorte';
+  const chica = fotoChica(perfume.imagen);
   contenedor.innerHTML = `
     <div class="visor__escena visor__escena--foto">
       <div class="visor__relieve ${recorte ? 'es-recorte' : 'es-completa'}">
-        <img src="${foto(perfume.imagen)}" alt="${titulo}" decoding="async" fetchpriority="high" draggable="false" data-foto-principal>
+        <img src="${chica || foto(perfume.imagen)}" alt="${titulo}" decoding="async" fetchpriority="high" draggable="false" data-foto-principal>
         <span class="visor__brillo" aria-hidden="true"></span>
       </div>
     </div>
     ${pista(window.matchMedia('(hover: hover)').matches ? 'Mové el mouse sobre el frasco' : 'Tocá y deslizá sobre el frasco', 'ojo')}`;
+  if (chica) {
+    // Se muestra la chica al instante y se cambia por la grande cuando ya está lista (sin parpadeo).
+    const grande = new Image();
+    grande.src = foto(perfume.imagen);
+    grande.decode().then(() => { contenedor.querySelector('[data-foto-principal]')?.setAttribute('src', grande.src); }).catch(() => {});
+  }
   if (reducido.matches) return;
   const escena = contenedor.querySelector('.visor__escena');
   const relieve = contenedor.querySelector('.visor__relieve');

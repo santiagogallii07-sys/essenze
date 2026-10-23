@@ -62,7 +62,7 @@ async function dialogoVenta() {
     titulo: 'Registrar venta',
     ancho: 640,
     html: `
-      <p class="campo__ayuda">Para ventas en persona, por Instagram o cualquier otro canal. Queda cobrada y suma a la caja.</p>
+      <p class="campo__ayuda">Para ventas en persona, por Instagram o cualquier otro canal. Queda cobrada y suma a la caja. Si cargás el costo, se descuenta en la caja como gasto ("Costo de mercadería").</p>
       <div class="campo selector-perfume">
         <span>Agregar perfume</span>
         <input class="entrada" data-buscar placeholder="Buscar marca o nombre…" autocomplete="off" enterkeyhint="search">
@@ -86,6 +86,11 @@ async function dialogoVenta() {
   function total() {
     return lineas.reduce((n, l) => n + (Number(l.precio) || 0) * (Number(l.cantidad) || 0), 0);
   }
+  const enPesos = dolarActual() > 0;
+  const aMoneda = (usd) => (enPesos ? Math.round((usd * dolarActual()) / 100) * 100 : usd);
+  function totalTexto() {
+    return enPesos ? ars(total()) : usd(total());
+  }
   function pintarLineas() {
     contLineas.innerHTML = lineas.map((l, i) => {
       const p = lista.find((x) => x.id === l.id);
@@ -96,11 +101,12 @@ async function dialogoVenta() {
           <div class="linea-venta__datos">
             <label class="campo"><span>Tamaño</span><select data-campo="ml">${p.presentaciones.map((x) => `<option value="${x.ml}" ${x.ml === l.ml ? 'selected' : ''}>${x.ml ? `${x.ml} ml` : 'Único'}</option>`).join('')}</select></label>
             <label class="campo"><span>Cantidad</span><input type="number" inputmode="numeric" min="1" value="${l.cantidad}" data-campo="cantidad"></label>
-            <label class="campo"><span>Precio c/u</span><input type="number" inputmode="decimal" min="0" step="0.01" value="${l.precio}" data-campo="precio"></label>
+            <label class="campo"><span>Precio c/u (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" min="0" step="0.01" value="${l.precio}" data-campo="precio"></label>
+            <label class="campo"><span>Costo c/u (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" min="0" step="0.01" value="${l.costo ?? ''}" placeholder="Opcional" data-campo="costo"></label>
           </div>
         </div>`;
     }).join('');
-    d.querySelector('[data-total]').placeholder = lineas.length ? `${pesos(total())} (calculado)` : 'Se calcula solo';
+    d.querySelector('[data-total]').placeholder = lineas.length ? `${totalTexto()} (calculado)` : 'Se calcula solo';
   }
   buscar.addEventListener('input', demorar(() => {
     const q = norm(buscar.value).split(/\s+/).filter(Boolean);
@@ -113,7 +119,7 @@ async function dialogoVenta() {
     if (!b) return;
     const p = lista.find((x) => x.id === b.dataset.id);
     const pres = p.presentaciones[0];
-    lineas.push({ id: p.id, ml: pres.ml, cantidad: 1, precio: pres.precio });
+    lineas.push({ id: p.id, ml: pres.ml, cantidad: 1, precio: aMoneda(pres.precio), costo: pres.costo ? aMoneda(pres.costo) : null });
     buscar.value = '';
     resultados.hidden = true;
     pintarLineas();
@@ -123,13 +129,17 @@ async function dialogoVenta() {
     const i = Number(e.target.closest('[data-i]')?.dataset.i);
     const campo = e.target.dataset.campo;
     if (!campo) return;
-    lineas[i][campo] = Number(e.target.value);
+    lineas[i][campo] = e.target.value === '' && campo === 'costo' ? null : Number(e.target.value);
     if (campo === 'ml') {
       const p = lista.find((x) => x.id === lineas[i].id);
-      lineas[i].precio = p.presentaciones.find((x) => x.ml === lineas[i].ml)?.precio ?? lineas[i].precio;
+      const pres = p.presentaciones.find((x) => x.ml === lineas[i].ml);
+      if (pres) {
+        lineas[i].precio = aMoneda(pres.precio);
+        lineas[i].costo = pres.costo ? aMoneda(pres.costo) : lineas[i].costo;
+      }
       pintarLineas();
     } else {
-      d.querySelector('[data-total]').placeholder = `${pesos(total())} (calculado)`;
+      d.querySelector('[data-total]').placeholder = `${totalTexto()} (calculado)`;
     }
   });
   contLineas.addEventListener('click', (e) => {
@@ -143,7 +153,7 @@ async function dialogoVenta() {
       await api('/pedidos', {
         metodo: 'POST',
         datos: {
-          items: lineas,
+          items: lineas.map((l) => (enPesos ? { id: l.id, ml: l.ml, cantidad: l.cantidad, precioArs: l.precio, costoArs: l.costo } : l)),
           nombre: d.querySelector('[data-nombre]').value,
           telefono: d.querySelector('[data-telefono]').value,
           metodo_pago: d.querySelector('[data-metodo]').value,

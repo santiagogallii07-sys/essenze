@@ -612,7 +612,8 @@ a.cifra { transition: background-color 160ms ease; }
 .resultados-busqueda button .mini--svg svg { height: 36px; }
 .lineas-venta { display: grid; gap: 8px; }
 .linea-venta { display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: 8px; padding: 10px; background: var(--superficie-2); border: 1px solid var(--linea); }
-.linea-venta__datos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; grid-column: 1 / -1; }
+.linea-venta__datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; grid-column: 1 / -1; }
+@media (min-width: 640px) { .linea-venta__datos { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* ---------- Caja ---------- */
 
@@ -680,6 +681,51 @@ button.movimiento { width: 100%; text-align: left; }
 .progreso__texto { display: flex; justify-content: space-between; font-size: 0.86rem; color: var(--texto-2); font-variant-numeric: tabular-nums; }
 .avisos-import { max-height: 220px; overflow-y: auto; font-size: 0.84rem; color: var(--texto-2); display: grid; gap: 4px; padding-left: 18px; list-style: disc; }
 .avisos-import li::marker { color: var(--rojo); }
+.avisos-import--neutro li::marker { color: var(--texto-3); }
+.avisos-import a { color: var(--texto); text-decoration: underline; text-decoration-color: var(--linea-fuerte); text-underline-offset: 3px; }
+
+/* ---------- Fotos en lote ---------- */
+
+.acceso-lote { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.acceso-lote > .icono { flex: none; width: 30px; height: 30px; color: var(--oro); }
+.acceso-lote__texto { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.acceso-lote__texto strong { font-weight: 400; }
+.acceso-lote__texto small { color: var(--texto-3); font-size: 0.82rem; }
+.enlace-suelto { color: var(--oro-claro); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.aviso-lote { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 12px 14px; border: 1px solid rgba(232, 144, 122, 0.4); border-radius: 3px; color: var(--texto-2); font-size: 0.88rem; }
+.aviso-lote .icono { flex: none; width: 18px; height: 18px; color: var(--rojo); }
+.aviso-lote strong { font-weight: 400; color: var(--texto); }
+
+.comparar-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 168px), 1fr)); gap: 12px; }
+.comparar-fotos__item { display: grid; gap: 8px; margin: 0; }
+.comparar-fotos__par { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.comparar-fotos__lado {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 10 / 11;
+  background: #fbf9f5;
+  border: 1px solid rgba(201, 163, 92, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.comparar-fotos__lado::before {
+  content: attr(data-rotulo);
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8a8172;
+}
+.comparar-fotos__lado--nueva { border-color: var(--oro); }
+.comparar-fotos__lado--nueva::before { color: #9a7a3c; }
+.comparar-fotos__lado img { width: 84%; height: 84%; margin-top: 8%; object-fit: contain; }
+.comparar-fotos__vacio { font-size: 0.7rem; color: #a59c8c; }
+.comparar-fotos figcaption { display: grid; gap: 1px; font-size: 0.8rem; line-height: 1.3; min-width: 0; }
+.comparar-fotos figcaption strong { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comparar-fotos figcaption span { color: var(--texto-3); font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 details.tarjeta-admin summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
 details.tarjeta-admin summary::-webkit-details-marker { display: none; }
 

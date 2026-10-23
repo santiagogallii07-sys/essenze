@@ -70,8 +70,11 @@ export function demorar(fn, ms = 200) {
   };
 }
 
+// Las fotos subidas en lote ("h-…") tienen una copia chica "<id>-m"; para miniaturas alcanza con esa.
+export const urlFotoChica = (id) => `/foto/${escapar(id)}${/^h-/.test(id) ? '-m' : ''}`;
+
 export function miniatura(p, clase = 'mini') {
-  if (p.imagen) return `<img class="${clase} ${p.fondo === 'recorte' || p.imagen_fondo === 'recorte' ? 'es-recorte' : ''}" src="/foto/${escapar(p.imagen)}" alt="" loading="lazy" decoding="async">`;
+  if (p.imagen) return `<img class="${clase} ${p.fondo === 'recorte' || p.imagen_fondo === 'recorte' ? 'es-recorte' : ''}" src="${urlFotoChica(p.imagen)}" alt="" loading="lazy" decoding="async">`;
   return `<span class="${clase} ${clase}--svg">${frascoSVG(p, { etiqueta: false })}</span>`;
 }
 

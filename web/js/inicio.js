@@ -1,5 +1,5 @@
 import { TIPOS } from './config.js';
-import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, observarRevelado } from './interfaz.js';
+import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, observarRevelado } from './interfaz.js';
 import { enOferta, hayStock, normalizar } from './datos.js';
 import { icono } from './iconos.js';
 
@@ -16,7 +16,7 @@ const BIENVENIDA = {
 
 function escenaOferta(o, p, i) {
   if (o.imagen) return `<img class="foto foto--recorte" src="/foto/${escapar(o.imagen)}" alt="" ${i ? 'loading="lazy"' : 'fetchpriority="high"'} draggable="false">`;
-  if (p) return imagenPerfume(p, { perezosa: i > 0 });
+  if (p) return imagenPerfume(p, { perezosa: i > 0, grande: true });
   return '';
 }
 
@@ -185,12 +185,12 @@ function analizarRecorte(src) {
 }
 
 async function elegirMuestras(lista) {
-  // Se prueban hasta 30 candidatos (destacados primero) y se quedan los 3 mejores: limpios y altos.
+  // Se prueban hasta 12 candidatos (destacados primero) y se quedan los 3 mejores: limpios y altos.
   const candidatos = lista
     .filter((p) => p.imagen && p.fondo === 'recorte')
     .sort((a, b) => Number(!!b.destacado) - Number(!!a.destacado))
-    .slice(0, 30);
-  const analizados = await Promise.all(candidatos.map(async (p) => ({ p, ...(await analizarRecorte(`/foto/${p.imagen}`)) })));
+    .slice(0, 12);
+  const analizados = await Promise.all(candidatos.map(async (p) => ({ p, ...(await analizarRecorte(urlFoto(p.imagen))) })));
   const limpios = analizados.filter((x) => x.limpio);
   const solos = limpios.filter((x) => x.alto >= 1.15);
   const elegidos = [...solos, ...limpios.filter((x) => !solos.includes(x))].slice(0, 3);
@@ -211,13 +211,18 @@ function montarTipos(raiz, perfumes) {
       </a>
     </li>`;
   }).join('');
-  // Las muestras solo se ven al pasar el mouse: se eligen en segundo plano y sin apuro.
+  // Las muestras solo se ven al pasar el mouse: se eligen cuando la lista se acerca a la pantalla.
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-  for (const [clave] of entradas) {
-    elegirMuestras(perfumes.filter((p) => p.tipo === clave)).then((muestras) => {
-      raiz.querySelector(`[data-frascos="${clave}"]`).innerHTML = muestras.map((p) => imagenPerfume(p)).join('');
-    });
-  }
+  const observador = new IntersectionObserver((vistos) => {
+    if (!vistos.some((v) => v.isIntersecting)) return;
+    observador.disconnect();
+    for (const [clave] of entradas) {
+      elegirMuestras(perfumes.filter((p) => p.tipo === clave)).then((muestras) => {
+        raiz.querySelector(`[data-frascos="${clave}"]`).innerHTML = muestras.map((p) => imagenPerfume(p)).join('');
+      });
+    }
+  }, { rootMargin: '400px 0px' });
+  observador.observe(raiz);
 }
 
 // Cinta de marcas que se desplaza sola; se duplica para que el giro no tenga corte.

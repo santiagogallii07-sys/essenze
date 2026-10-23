@@ -96,6 +96,7 @@ async function enrutar() {
   let destino = SECCIONES.find((s) => s.id === seccion) || SECCIONES[0];
   let modulo = destino.modulo;
   if (destino.id === 'perfumes' && params.length) modulo = './vistas/editor.js';
+  if (destino.id === 'importar' && params[0] === 'fotos') modulo = './vistas/fotos-lote.js';
   rutaActual = hash;
 
   if (typeof limpiar === 'function') limpiar();
@@ -112,7 +113,7 @@ async function enrutar() {
     limpiar = await m.montar({ vista: el.vista, params, consulta, app });
   } catch (e) {
     console.error(e);
-    el.vista.innerHTML = `<div class="vacio-admin"><p>No se pudo abrir esta sección.</p><p class="vacio-admin__detalle">${escapar(e.message)}</p><button class="boton boton--contorno" type="button" onclick="location.reload()">Reintentar</button></div>`;
+    el.vista.innerHTML = `<div class="vacio-admin"><p>No se pudo abrir esta sección.</p><p class="vacio-admin__detalle">${escapar(e.message)}</p><a class="boton boton--contorno" href="">Reintentar</a></div>`;
   }
 }
 

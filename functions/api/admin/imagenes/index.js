@@ -1,5 +1,7 @@
 // POST /api/admin/imagenes → sube una foto ya procesada en el navegador (cuerpo binario).
 // Encabezados: Content-Type (image/webp|png|jpeg), X-Fondo (recorte|foto), X-Ancho, X-Alto.
+// X-Huella (opcional, sha-256 del archivo): el id sale de la huella, así subir dos veces la misma foto no la duplica.
+// X-Variante: mini (con huella) → copia chica para tarjetas y bolsa; se guarda como "<id>-m" y la tienda la deduce sola.
 // GET /api/admin/imagenes?ids=a,b → indica cuáles existen.
 import { manejar, json, error, idAleatorio } from '../../../../lib/util.js';
 
@@ -13,12 +15,16 @@ export const onRequestPost = manejar(async ({ request, env }) => {
   if (!datos.byteLength) return error(400, 'La imagen está vacía.');
   if (datos.byteLength > MAXIMO) return error(413, 'La imagen pesa demasiado (máximo 1,8 MB después de procesarla).');
 
-  const id = idAleatorio(14);
-  const fondo = request.headers.get('X-Fondo') === 'recorte' ? 'recorte' : 'foto';
+  const huella = (request.headers.get('X-Huella') || '').toLowerCase();
+  const conHuella = /^[a-f0-9]{24,64}$/.test(huella);
+  const mini = conHuella && request.headers.get('X-Variante') === 'mini';
+  const id = conHuella ? `h-${huella.slice(0, 24)}${mini ? '-m' : ''}` : idAleatorio(14);
+  let fondo = request.headers.get('X-Fondo') === 'recorte' ? 'recorte' : 'foto';
   const ancho = parseInt(request.headers.get('X-Ancho'), 10) || null;
   const alto = parseInt(request.headers.get('X-Alto'), 10) || null;
-  await env.DB.prepare('INSERT INTO imagenes (id, tipo, fondo, ancho, alto, datos) VALUES (?, ?, ?, ?, ?, ?)')
+  const r = await env.DB.prepare('INSERT OR IGNORE INTO imagenes (id, tipo, fondo, ancho, alto, datos) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(id, tipo, fondo, ancho, alto, datos).run();
+  if (!r.meta.changes) fondo = (await env.DB.prepare('SELECT fondo FROM imagenes WHERE id = ?').bind(id).first('fondo')) || fondo;
   return json({ ok: true, id, fondo, url: `/foto/${id}` }, 201);
 });
 

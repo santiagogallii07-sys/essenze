@@ -21,7 +21,7 @@ export const onRequestPut = manejar(async ({ params, request, env }) => {
   return json({ ok: true, id: p.id });
 });
 
-// Cambios rápidos desde la lista: visible, destacado, stock/precio de un tamaño.
+// Cambios rápidos desde la lista: visible, destacado, stock/precio de un tamaño, foto principal.
 export const onRequestPatch = manejar(async ({ params, request, env }) => {
   const actual = await buscar(env, String(params.id));
   if (!actual) return error(404, 'No existe ese perfume.');
@@ -31,6 +31,13 @@ export const onRequestPatch = manejar(async ({ params, request, env }) => {
   if ('destacado' in cambios) p.destacado = !!cambios.destacado;
   if ('revisar' in cambios) p.revisar = '';
   if (Array.isArray(cambios.presentaciones)) p.presentaciones = cambios.presentaciones;
+  if ('imagen' in cambios) {
+    // El tipo de fondo sale de la foto guardada, no de lo que mande el navegador.
+    const fondo = await env.DB.prepare('SELECT fondo FROM imagenes WHERE id = ?').bind(String(cambios.imagen)).first('fondo');
+    if (!fondo) return error(404, 'Esa foto no está subida.');
+    p.imagen = String(cambios.imagen);
+    p.imagen_fondo = fondo;
+  }
   const limpio = limpiarPerfume(p);
   await env.DB.batch([sentenciaGuardar(env, limpio), sentenciaVersion(env)]);
   return json({ ok: true, perfume: limpio });
@@ -42,10 +49,10 @@ export const onRequestDelete = manejar(async ({ params, env }) => {
   if (!actual) return error(404, 'No existe ese perfume.');
   const fotos = [actual.imagen, ...actual.imagenes].filter(Boolean);
   const sentencias = [env.DB.prepare('DELETE FROM perfumes WHERE id = ?').bind(actual.id), sentenciaVersion(env)];
-  // Borra las fotos que solo usaba este perfume.
+  // Borra las fotos que solo usaba este perfume (y su copia chica, si la tiene).
   for (const f of fotos) {
     sentencias.push(env.DB.prepare(
-      `DELETE FROM imagenes WHERE id = ?1
+      `DELETE FROM imagenes WHERE (id = ?1 OR id = ?1 || '-m')
        AND NOT EXISTS (SELECT 1 FROM perfumes WHERE imagen = ?1 OR imagenes LIKE '%"' || ?1 || '"%')
        AND NOT EXISTS (SELECT 1 FROM ofertas WHERE imagen = ?1 OR imagen_movil = ?1)`,
     ).bind(f));

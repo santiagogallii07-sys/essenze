@@ -1,5 +1,5 @@
 // GET /api/admin/pedidos?estado=&q= · POST → registrar una venta hecha fuera de la web (local, Instagram…)
-import { manejar, json, error, leerJSON, texto, numero, idAleatorio, hoyArgentina, sentenciaVersion } from '../../../../lib/util.js';
+import { manejar, json, error, leerJSON, texto, numero, idAleatorio, hoyArgentina, sentenciaVersion, leerAjustes } from '../../../../lib/util.js';
 import { ESTADOS, filaAPedido, sentenciasCobro } from '../../../../lib/pedidos.js';
 
 export const onRequestGet = manejar(async ({ request, env }) => {
@@ -27,14 +27,32 @@ export const onRequestPost = manejar(async ({ request, env }) => {
     .bind(JSON.stringify(ids)).all();
   const porId = new Map(results.map((r) => [r.id, { ...r, presentaciones: JSON.parse(r.presentaciones || '[]') }]));
 
+  const dolar = (await leerAjustes(env)).cotizacion;
+  const redondear = (n) => Math.round(n * 100) / 100;
   const items = [];
+  let costoManualArs = 0;
   for (const i of pedidos) {
     const p = porId.get(texto(i.id, 100));
     const ml = Math.round(numero(i.ml, -1));
     const pres = p?.presentaciones.find((x) => x.ml === ml);
     if (!p || !pres) continue;
-    const precio = i.precio === undefined || i.precio === '' ? pres.precio : Math.max(0, numero(i.precio, pres.precio));
-    items.push({ id: p.id, marca: p.marca, nombre: p.nombre, concentracion: p.concentracion, ml, cantidad: Math.max(1, Math.round(numero(i.cantidad, 1))), precio, costo: pres.costo ?? null });
+    const cantidad = Math.max(1, Math.round(numero(i.cantidad, 1)));
+    // Precio y costo pueden venir en pesos (panel en pesos) o en dólares; se guardan en dólares.
+    let precio = pres.precio;
+    if (dolar && i.precioArs !== undefined && i.precioArs !== '') precio = redondear(Math.max(0, numero(i.precioArs, 0)) / dolar);
+    else if (i.precio !== undefined && i.precio !== '') precio = Math.max(0, numero(i.precio, pres.precio));
+    let costo = pres.costo ?? null;
+    let costoManual = false;
+    if (dolar && i.costoArs !== undefined && i.costoArs !== null && i.costoArs !== '') {
+      costo = redondear(Math.max(0, numero(i.costoArs, 0)) / dolar);
+      costoManualArs += Math.max(0, numero(i.costoArs, 0)) * cantidad;
+      costoManual = true;
+    } else if (i.costo !== undefined && i.costo !== null && i.costo !== '') {
+      costo = Math.max(0, numero(i.costo, 0));
+      costoManualArs += costo * cantidad * (dolar || 1);
+      costoManual = true;
+    }
+    items.push({ id: p.id, marca: p.marca, nombre: p.nombre, concentracion: p.concentracion, ml, cantidad, precio, costo, costoManual });
   }
   if (!items.length) return error(400, 'Los perfumes elegidos no existen.');
 
@@ -60,6 +78,11 @@ export const onRequestPost = manejar(async ({ request, env }) => {
        VALUES (?, ?, 'manual', ?, ?, ?, '', ?, ?, ?)`,
     ).bind(pedido.id, `${fecha} 12:00:00`, estado, pedido.nombre, pedido.telefono, JSON.stringify(items), total, texto(d.notas, 600)),
     ...cobro,
+    // El costo cargado a mano se registra como gasto del mismo pedido (si se anula la venta, se borra junto).
+    ...(costoManualArs > 0 ? [env.DB.prepare(
+      `INSERT INTO movimientos (id, fecha, tipo, categoria, descripcion, monto, moneda, monto_original, cotizacion, pedido)
+       VALUES (?, ?, 'egreso', 'Costo de mercadería', ?, ?, ?, ?, ?, ?)`,
+    ).bind(idAleatorio(12), fecha, `Costo · ${pedido.id}${pedido.nombre ? ` · ${pedido.nombre}` : ''}`, redondear(dolar ? costoManualArs / dolar : costoManualArs), dolar ? 'ARS' : 'USD', dolar ? costoManualArs : null, dolar || null, pedido.id)] : []),
     sentenciaVersion(env),
   ]);
   return json({ ok: true, id: pedido.id }, 201);

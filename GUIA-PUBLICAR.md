@@ -13,7 +13,7 @@ Lo más fácil es con **GitHub Desktop**, que no requiere comandos.
 
 1. Creá una cuenta en https://github.com si no tenés.
 2. Instalá **GitHub Desktop** (https://desktop.github.com) e iniciá sesión.
-3. Elegí **File → Add local repository…** y seleccioná la carpeta `essenze-github` (está en Documentos → Cosas).
+3. Elegí **File → Add local repository…** y seleccioná la carpeta `Essenze Parfum & Decants`.
    - Si te dice que no es un repositorio, tocá **create a repository** y confirmá con los valores que trae.
 4. Abajo a la izquierda escribí un resumen (por ejemplo "Primera versión") y tocá **Commit to main**.
 5. Tocá **Publish repository**, dejá tildado **Keep this code private** y confirmá.
@@ -96,7 +96,7 @@ Si comprás el dominio en Cloudflare (Domain Registration), se conecta solo.
 ## 8. Copias de seguridad
 
 - **Panel → Ajustes → Descargar copia** una vez por mes. Guardá el archivo en tu Drive.
-- Las fotos están en la base de datos. Si alguna vez hiciera falta, se vuelven a cargar importando el Excel.
+- Las fotos están en la base de datos. Guardá también la carpeta `PERFUMES/para_la_web` en tu Drive: si alguna vez hiciera falta, se vuelven a cargar con **Importar Excel → Fotos en lote**.
 
 ---
 
@@ -106,7 +106,7 @@ Si comprás el dominio en Cloudflare (Domain Registration), se conecta solo.
 |---|---|---|
 | Visitas a páginas | Ilimitadas | — |
 | Consultas a la API y fotos | 100.000 por día | Cada visita usa entre 1 y 30 |
-| Base de datos D1 | 5 GB | Hoy unos 15 MB, con 1.210 fotos |
+| Base de datos D1 | 500 MB por base | Unos 180 MB con las 1.201 fotos buenas (grande + chica) |
 | Lecturas de la base | 5 millones por día | El catálogo queda en caché |
 | Escrituras | 100.000 por día | Una importación completa usa unas 5.000 |
 

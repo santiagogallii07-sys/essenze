@@ -52,6 +52,11 @@ export async function montar({ vista, app }) {
 
   function inicio() {
     vista.innerHTML = `
+      <a class="tarjeta-admin acceso-lote" href="#/importar/fotos">
+        ${icono('imagen')}
+        <span class="acceso-lote__texto"><strong>Fotos en lote</strong><small>Subí una carpeta entera de fotos: cada una va sola a su perfume.</small></span>
+        ${icono('chevron')}
+      </a>
       <section class="tarjeta-admin">
         <h2 class="tarjeta-admin__titulo">Cargar el catálogo desde Excel</h2>
         <ol class="pasos-import">
@@ -137,7 +142,7 @@ export async function montar({ vista, app }) {
           <label class="campo"><span>Fotos</span>
             <select data-op="fotos">
               <option value="faltantes">Subir solo a los que no tienen foto (${sinFotoEnBase})</option>
-              <option value="todas">Reemplazar todas las fotos (${conFoto})</option>
+              <option value="todas">Reemplazar todas por las del Excel (${conFoto}) · pisa las fotos buenas</option>
               <option value="ninguna">No subir fotos</option>
             </select>
           </label>

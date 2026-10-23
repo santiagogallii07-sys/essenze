@@ -17,11 +17,16 @@ export function escapar(t) {
   return String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
+// Las fotos subidas en lote ("h-…") tienen una copia chica "<id>-m" para tarjetas, bolsa y muestras.
+export function urlFoto(id, { grande = false } = {}) {
+  return `/foto/${escapar(id)}${!grande && /^h-/.test(id) ? '-m' : ''}`;
+}
+
 // Foto del perfume (recortada o completa) o, si no tiene, la ilustración del frasco.
-export function imagenPerfume(p, { clase = '', perezosa = true } = {}) {
+export function imagenPerfume(p, { clase = '', perezosa = true, grande = false } = {}) {
   if (p.imagen) {
     const tipo = p.fondo === 'recorte' || p.imagen_fondo === 'recorte' ? 'foto--recorte' : 'foto--completa';
-    return `<img class="foto ${tipo} ${clase}" src="/foto/${escapar(p.imagen)}" alt="${escapar(`${p.marca} ${p.nombre}`)}" ${perezosa ? 'loading="lazy"' : ''} decoding="async" draggable="false">`;
+    return `<img class="foto ${tipo} ${clase}" src="${urlFoto(p.imagen, { grande })}" alt="${escapar(`${p.marca} ${p.nombre}`)}" ${perezosa ? 'loading="lazy"' : ''} decoding="async" draggable="false">`;
   }
   return frascoSVG(p, { clase });
 }
@@ -660,7 +665,7 @@ export async function iniciarPagina(pagina, { pildora = true } = {}) {
       <div class="contenedor no-encontrado">
         <h1 class="titulo-seccion">No pudimos cargar el catálogo</h1>
         <p>Revisá tu conexión y volvé a intentar. Si sigue pasando, escribinos por WhatsApp.</p>
-        <button class="boton boton--contorno" type="button" onclick="location.reload()">Reintentar</button>
+        <a class="boton boton--contorno" href="">Reintentar</a>
       </div>`;
     throw new Error('catálogo no disponible');
   }

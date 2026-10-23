@@ -10,6 +10,7 @@ export const onRequestDelete = manejar(async ({ params, env }) => {
      UNION SELECT 1 FROM ofertas WHERE imagen = ?1 OR imagen_movil = ?1 LIMIT 1`,
   ).bind(id).first();
   if (usada) return error(409, 'La foto está en uso.');
-  await env.DB.prepare('DELETE FROM imagenes WHERE id = ?').bind(id).run();
+  // Con la foto se va su copia chica (fotos subidas en lote).
+  await env.DB.prepare('DELETE FROM imagenes WHERE id = ?1 OR id = ?1 || \'-m\'').bind(id).run();
   return json({ ok: true });
 });

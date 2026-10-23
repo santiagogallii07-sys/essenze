@@ -70,8 +70,12 @@ Para esto se usa un `wrangler.toml` local, que no se sube a GitHub.
 
 ## Fotos: cómo mejorarlas
 
-Las fotos del Excel son chicas (240 px). Al importarlas, el panel les quita el fondo blanco y las pone sobre el escenario oscuro de la tienda, así el catálogo se ve parejo desde el primer día.
-Para reemplazarlas por fotos mejores, de a poco y empezando por las más vendidas y las de la cartelera:
+**Fotos en lote (Panel → Importar Excel → Fotos en lote):** se elige una carpeta con fotos que se llaman como el perfume en el link de la tienda (`afnan-9pm-eau-de-parfum.webp`) y cada una va sola a su perfume. Muestra el antes y el después, reemplaza las fotos y borra las viejas que quedan sin uso. Si se corta, se vuelve a elegir la misma carpeta y sigue desde donde quedó.
+Cada foto se guarda dos veces: la grande (1100 px) para la ficha y una chica (560 px) para las tarjetas, la bolsa y el panel. Así el catálogo carga liviano en el celular.
+La carpeta `PERFUMES/para_la_web` ya tiene las 1201 fotos buenas preparadas así (recortadas, con margen parejo y fondo transparente).
+
+Las fotos que vienen dentro del Excel son chicas (240 px). Al importarlas, el panel les quita el fondo blanco.
+Para cambiar fotos de a una:
 
 1. **Desde un link (lo más rápido):** buscá el perfume en la web de la marca o en Google Imágenes, abrí la imagen más grande y copiá su dirección. En el editor tocá **Pegar link**: se recorta sola.
 2. **Foto propia:** frasco sobre una hoja blanca, luz de día de costado, celular a la altura del frasco. Subila con **Subir**: el fondo blanco se quita solo.
