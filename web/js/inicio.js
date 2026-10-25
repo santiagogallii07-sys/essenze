@@ -1,4 +1,4 @@
-import { TIPOS } from './config.js';
+import { TIPOS, CONFIG } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, observarRevelado } from './interfaz.js';
 import { enOferta, hayStock, normalizar } from './datos.js';
 import { icono } from './iconos.js';
@@ -6,11 +6,11 @@ import { videoPersonaje, reproducir, puedeAnimar } from './personaje.js';
 
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-const BIENVENIDA = {
-  id: 'bienvenida',
-  etiqueta: '',
+// Textos del banner del cocodrilo si el panel todavía no los cargó (se editan en Panel → Ofertas).
+const PERSONAJE = {
+  activo: true,
   titulo: 'El lujo en cada nota',
-  texto: 'Perfumes árabes, de diseñador y de nicho en Córdoba. Elegí por marca o por cómo huelen y mandanos tu pedido por WhatsApp.',
+  texto: 'Perfumes árabes, de diseñador y de nicho',
   boton: 'Ver catálogo',
   enlace: '/catalogo',
 };
@@ -29,24 +29,27 @@ function montarCartelera(raiz, ofertas, porId) {
     const j = Math.floor(Math.random() * (i + 1));
     [mezcladas[i], mezcladas[j]] = [mezcladas[j], mezcladas[i]];
   }
+  const personaje = { ...PERSONAJE, ...CONFIG.personaje, personaje: true };
+  // Apagado en el panel, no sale (salvo que no haya ninguna oferta: la cartelera nunca queda vacía).
+  const conCocodrilo = personaje.activo || !mezcladas.length;
   const lugar = mezcladas.length ? 1 + Math.floor(Math.random() * mezcladas.length) : 0;
-  const lista = [...mezcladas.slice(0, lugar), { ...BIENVENIDA, personaje: true }, ...mezcladas.slice(lugar)];
+  const lista = conCocodrilo ? [...mezcladas.slice(0, lugar), personaje, ...mezcladas.slice(lugar)] : mezcladas;
   const diapositivas = lista.map((o, i) => {
     const p = porId.get(o.perfume);
     const Titulo = i === 0 ? 'h1' : 'h2';
     if (o.personaje) {
       return `
-    <article class="cartel cartel--personaje ${i === 0 ? 'es-activo' : ''}" aria-roledescription="diapositiva" aria-label="${i + 1} de ${lista.length}" ${i === 0 ? '' : 'aria-hidden="true" inert'}>
-      <div class="cartel__texto">
-        <${Titulo} class="cartel__titulo">${escapar(o.titulo)}</${Titulo}>
-        <span class="filete" aria-hidden="true"></span>
-        <p class="cartel__bajada">${escapar(o.texto)}</p>
-        <a class="boton boton--contorno" href="${escapar(o.enlace)}">${escapar(o.boton)} ${icono('flecha')}</a>
-      </div>
-      <div class="cartel__escena cartel__escena--personaje" aria-hidden="true">
-        <div class="cartel__haz"></div>
-        ${videoPersonaje({ clase: 'cartel__personaje' })}
-      </div>
+    <article class="cartel cartel--banner cartel--personaje ${i === 0 ? 'es-activo' : ''}" aria-roledescription="diapositiva" aria-label="${i + 1} de ${lista.length}" ${i === 0 ? '' : 'aria-hidden="true" inert'}>
+      <a class="cartel__banner banner-personaje" href="${escapar(o.enlace)}">
+        <span class="banner-personaje__rayos" aria-hidden="true"></span>
+        <span class="banner-personaje__texto">
+          <${Titulo} class="banner-personaje__titulo">${escapar(o.titulo)}</${Titulo}>
+          <span class="banner-personaje__filete" aria-hidden="true"></span>
+          ${o.texto ? `<span class="banner-personaje__bajada">${escapar(o.texto)}</span>` : ''}
+          <span class="banner-personaje__boton">${escapar(o.boton)} ${icono('flecha')}</span>
+        </span>
+        ${videoPersonaje({ clase: 'banner-personaje__video' })}
+      </a>
     </article>`;
     }
     // Banner hecho con IA: la imagen completa es la diapositiva y todo el banner es un enlace.
@@ -110,7 +113,7 @@ function montarCartelera(raiz, ofertas, porId) {
   }
 
   // El cocodrilo dibuja el logo al abrir la página y cada vez que vuelve su diapositiva.
-  const videoCartel = raiz.querySelector('.cartel__personaje');
+  const videoCartel = raiz.querySelector('.banner-personaje__video');
   const conPersonaje = (cartel) => cartel.classList.contains('cartel--personaje');
   if (conPersonaje(raiz.querySelector('.cartel.es-activo'))) reproducir(videoCartel);
 

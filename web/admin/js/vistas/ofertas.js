@@ -245,7 +245,52 @@ async function editarOferta(oferta) {
   return h.cerrada.then((v) => v === true);
 }
 
-function tarjetaOferta(o, porId, i, total) {
+// Banner animado del cocodrilo: no es una diapositiva más, se prende/apaga y se le cambian los textos.
+function tarjetaPersonaje(p) {
+  return `
+    <article class="oferta-admin oferta-admin--banner ${p.activo ? '' : 'es-inactiva'}" data-personaje>
+      <div class="oferta-admin__vista oferta-admin__vista--personaje"><img src="/video/cocodrilo-logo-v1.webp" alt=""><img src="/img/cocodrilo-bolsas.webp" alt=""></div>
+      <div class="oferta-admin__texto">
+        <span class="oferta-admin__etiqueta">Banner animado · cocodrilo</span>
+        <span class="oferta-admin__titulo">${escapar(p.titulo)}</span>
+        <span class="oferta-admin__sub">${escapar(p.texto)}</span>
+        <span class="oferta-admin__sub">${escapar(p.boton)} → ${escapar(p.enlace)} · nunca sale primero</span>
+      </div>
+      <div class="oferta-admin__acciones">
+        <label class="interruptor"><input type="checkbox" data-personaje-activo ${p.activo ? 'checked' : ''}><span class="interruptor__pista"></span><span>Activo</span></label>
+        <button class="boton-icono" type="button" data-personaje-editar aria-label="Editar textos">${icono('editar')}</button>
+      </div>
+    </article>`;
+}
+
+function editarPersonaje(p) {
+  const h = hoja({
+    titulo: 'Banner animado del cocodrilo',
+    ancho: 520,
+    html: `
+      <p class="campo__ayuda">El cocodrilo cruza tirando de la cinta dorada y dibuja el logo, al lado de estos textos (con el mismo estilo que los banners).</p>
+      <label class="campo"><span>Título</span><input data-c="titulo" maxlength="80" value="${escapar(p.titulo)}"></label>
+      <label class="campo"><span>Bajada (opcional)</span><input data-c="texto" maxlength="140" value="${escapar(p.texto)}"></label>
+      <div class="form-grilla form-grilla--2">
+        <label class="campo"><span>Botón</span><input data-c="boton" maxlength="40" value="${escapar(p.boton)}"></label>
+        <label class="campo"><span>Lleva a</span><input data-c="enlace" maxlength="300" value="${escapar(p.enlace)}" placeholder="/catalogo"></label>
+      </div>`,
+    pie: '<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-ok>Guardar</button>',
+  });
+  h.dialogo.querySelector('[data-ok]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
+    const datos = { ...p };
+    h.dialogo.querySelectorAll('[data-c]').forEach((el) => { datos[el.dataset.c] = el.value; });
+    try {
+      h.cerrar(await api('/personaje', { metodo: 'PUT', datos }));
+      aviso('Banner guardado');
+    } catch (err) {
+      avisoError(err);
+    }
+  }));
+  return h.cerrada;
+}
+
+function tarjetaOferta(o, porId) {
   const p = porId.get(o.perfume);
   const vista = o.imagen ? `<img src="/foto/${o.imagen}" alt="">` : p ? (p.imagen ? `<img src="/foto/${p.imagen}" alt="">` : frascoSVG(p, { etiqueta: false })) : icono('imagen');
   const fechas = o.desde || o.hasta ? ` · ${o.desde ? `desde ${fecha(o.desde)}` : ''} ${o.hasta ? `hasta ${fecha(o.hasta)}` : ''}` : '';
@@ -260,8 +305,6 @@ function tarjetaOferta(o, porId, i, total) {
       </div>
       <div class="oferta-admin__acciones">
         <label class="interruptor"><input type="checkbox" data-activa ${o.activa ? 'checked' : ''}><span class="interruptor__pista"></span><span>Activa</span></label>
-        <button class="boton-icono" type="button" data-mover="-1" aria-label="Subir" ${i === 0 ? 'disabled' : ''}>${icono('arriba')}</button>
-        <button class="boton-icono" type="button" data-mover="1" aria-label="Bajar" ${i === total - 1 ? 'disabled' : ''}>${icono('abajo')}</button>
         <button class="boton-icono" type="button" data-editar aria-label="Editar">${icono('editar')}</button>
         <button class="boton-icono" type="button" data-borrar aria-label="Eliminar">${icono('basura')}</button>
       </div>
@@ -281,6 +324,7 @@ export async function montar({ vista, app }) {
   app.acciones([banner, nueva]);
 
   let ofertas = [];
+  let personaje = (await api('/ajustes')).personaje;
   const lista = await perfumes();
   const porId = new Map(lista.map((p) => [p.id, p]));
   const enOferta = () => lista.filter((p) => p.presentaciones.some((x) => x.precioAnterior)).length;
@@ -294,8 +338,8 @@ export async function montar({ vista, app }) {
     vista.innerHTML = `
       <section class="tarjeta-admin">
         <h2 class="tarjeta-admin__titulo">Cartelera del inicio <a href="/" target="_blank" rel="noopener">Ver en la tienda</a></h2>
-        <p class="campo__ayuda" style="margin-bottom:12px">Pasan solas en este orden. Hay dos tipos: <strong>Banner</strong> (una imagen completa hecha con IA, con el botón "Cargar banner") y <strong>Diapositiva</strong> (texto + foto de un perfume, armada por la página). Si no hay ninguna activa, se muestra la bienvenida.</p>
-        <div data-lista>${ofertas.length ? ofertas.map((o, i) => tarjetaOferta(o, porId, i, ofertas.length)).join('') : '<p class="vacio-admin">Todavía no hay diapositivas.</p>'}</div>
+        <p class="campo__ayuda" style="margin-bottom:12px">Pasan solas en orden al azar (cambia en cada visita), 3 segundos cada una; el banner del cocodrilo dura lo que su animación y nunca sale primero. Hay dos tipos: <strong>Banner</strong> (una imagen completa hecha con IA, con el botón "Cargar banner") y <strong>Diapositiva</strong> (texto + foto de un perfume, armada por la página).</p>
+        <div data-lista>${tarjetaPersonaje(personaje)}${ofertas.map((o) => tarjetaOferta(o, porId)).join('')}</div>
       </section>
       <section class="tarjeta-admin">
         <h2 class="tarjeta-admin__titulo">Descuentos en precios</h2>
@@ -317,6 +361,14 @@ export async function montar({ vista, app }) {
       }
       return;
     }
+    if (e.target.closest('[data-personaje-editar]')) {
+      const r = await editarPersonaje(personaje);
+      if (r) {
+        personaje = r;
+        pintar();
+      }
+      return;
+    }
     const art = e.target.closest('[data-id]');
     if (!art) return;
     const o = ofertas.find((x) => x.id === art.dataset.id);
@@ -327,15 +379,19 @@ export async function montar({ vista, app }) {
         await api(`/ofertas/${o.id}`, { metodo: 'DELETE' }).catch(avisoError);
         cargar();
       }
-    } else if (e.target.closest('[data-mover]')) {
-      const i = ofertas.indexOf(o);
-      const j = i + Number(e.target.closest('[data-mover]').dataset.mover);
-      [ofertas[i], ofertas[j]] = [ofertas[j], ofertas[i]];
-      pintar();
-      api('/ofertas', { metodo: 'PUT', datos: { orden: ofertas.map((x) => x.id) } }).catch(avisoError);
     }
   });
   vista.addEventListener('change', async (e) => {
+    if (e.target.matches('[data-personaje-activo]')) {
+      try {
+        personaje = await api('/personaje', { metodo: 'PUT', datos: { ...personaje, activo: e.target.checked } });
+        aviso(personaje.activo ? 'Banner del cocodrilo activado' : 'Banner del cocodrilo apagado');
+        pintar();
+      } catch (err) {
+        avisoError(err);
+      }
+      return;
+    }
     if (!e.target.matches('[data-activa]')) return;
     const o = ofertas.find((x) => x.id === e.target.closest('[data-id]').dataset.id);
     o.activa = e.target.checked;

@@ -1820,25 +1820,95 @@ button, .boton, .chip, .pestana, .tamano, .tamano-rapido, .boton-circular, .acor
 .personaje::-webkit-media-controls { display: none !important; }
 .personaje-foto { display: block; height: auto; mix-blend-mode: screen; pointer-events: none; user-select: none; }
 
-/* Cartelera: la bienvenida con el cocodrilo a la derecha (arriba en el celular).
-   Para que el negro del video se funda con el fondo, nada entre el video y la cartelera puede formar
-   un grupo aparte (opacidad o transform): por eso esta diapositiva no se funde entera, se funden sus partes. */
+/* Cartelera: banner animado del cocodrilo, con el estilo de los banners de IA (título dorado
+   a la izquierda, luz de estudio, el cocodrilo dibujando el logo a la derecha).
+   Para que el negro del video se funda con el fondo del banner, nada entre los dos puede formar un grupo
+   aparte (opacidad o transform): por eso esta diapositiva no se funde entera, se funden sus partes. */
 .cartel--personaje, .cartel--personaje.es-activo { opacity: 1; }
 .cartel--personaje { transition: visibility 0s linear 0.9s; }
 .cartel--personaje.es-activo { transition: none; }
-.cartel__escena--personaje { place-items: center; animation: none !important; }
-.cartel__escena--personaje .cartel__haz { right: 30%; opacity: 0; transition: opacity 0.9s var(--salida); }
-.cartel--personaje.es-activo .cartel__haz { opacity: 0.55; }
-.cartel__personaje {
-  position: relative;
-  width: min(100%, 720px);
-  opacity: 0;
-  transition: opacity 0.9s var(--salida);
+.banner-personaje {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  align-items: center;
+  aspect-ratio: 12 / 5;
+  background:
+    radial-gradient(42% 70% at 74% 62%, rgba(201, 163, 92, 0.2), transparent 70%),
+    radial-gradient(60% 90% at 18% 0%, rgba(227, 194, 126, 0.16), transparent 60%),
+    linear-gradient(180deg, #120f0b, #070605 70%, #0d0b08);
 }
-.cartel--personaje.es-activo .cartel__personaje { opacity: 1; }
+.banner-personaje__rayos {
+  position: absolute;
+  inset: -20% 40% -10% -10%;
+  background: repeating-linear-gradient(115deg, transparent 0 46px, rgba(227, 194, 126, 0.07) 46px 50px, transparent 50px 96px);
+  filter: blur(6px);
+  -webkit-mask-image: linear-gradient(160deg, #000, transparent 70%);
+  mask-image: linear-gradient(160deg, #000, transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s var(--salida);
+}
+.banner-personaje__texto {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: clamp(10px, 1.4vw, 18px);
+  padding: 0 4% 0 7%;
+  text-align: center;
+}
+.banner-personaje__texto > * { opacity: 0; transform: translateY(14px); transition: opacity 0.9s var(--salida), transform 0.9s var(--salida); }
+.banner-personaje__titulo {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 4.4vw, 4.2rem);
+  line-height: 1.05;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  background: linear-gradient(180deg, #f3dca4 10%, #c9a35c 55%, #8a6a2f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.banner-personaje__filete { width: min(80%, 360px); height: 1px; background: linear-gradient(90deg, transparent, var(--oro-claro), transparent); }
+.banner-personaje__bajada { font-size: clamp(0.72rem, 1.1vw, 1rem); letter-spacing: 0.32em; text-transform: uppercase; color: var(--texto); }
+.banner-personaje__boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 22px;
+  border: 1px solid var(--linea-fuerte);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--oro-claro);
+  transition: background-color 0.3s, color 0.3s;
+}
+.banner-personaje__boton .icono { width: 16px; height: 16px; }
+.banner-personaje__video { align-self: end; width: 100%; opacity: 0; transition: opacity 0.9s var(--salida); }
+.cartel--personaje.es-activo .banner-personaje__rayos { opacity: 1; }
+.cartel--personaje.es-activo .banner-personaje__video { opacity: 1; }
+.cartel--personaje.es-activo .banner-personaje__texto > * { opacity: 1; transform: none; }
+.cartel--personaje.es-activo .banner-personaje__texto > :nth-child(2) { transition-delay: 0.1s; }
+.cartel--personaje.es-activo .banner-personaje__texto > :nth-child(3) { transition-delay: 0.18s; }
+.cartel--personaje.es-activo .banner-personaje__texto > :nth-child(4) { transition-delay: 0.26s; }
+@media (hover: hover) and (pointer: fine) {
+  .banner-personaje:hover .banner-personaje__boton { background: var(--oro); color: var(--negro); }
+}
 @media (max-width: 860px) {
-  .cartel__escena--personaje { height: auto; padding-top: 8px; }
-  .cartel__personaje { width: min(100%, 520px); }
+  /* En el celular, como los banners verticales: texto arriba y el cocodrilo abajo. */
+  .banner-personaje { grid-template-columns: 1fr; grid-template-rows: auto 1fr; aspect-ratio: 4 / 5; align-items: start; padding-top: 9%; }
+  .banner-personaje__texto { padding: 0 8%; }
+  .banner-personaje__titulo { font-size: clamp(1.8rem, 8.6vw, 2.6rem); }
+  .banner-personaje__bajada { letter-spacing: 0.22em; }
+  .banner-personaje__rayos { inset: -10% -10% 30% -10%; }
+  .banner-personaje__video { align-self: end; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .banner-personaje__texto > * { transform: none; transition: none; }
 }
 
 /* Pie: el cocodrilo cruza y deja el logo (antes, el logo quieto) */

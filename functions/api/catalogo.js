@@ -25,6 +25,7 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
     cotizacion: ajustes.cotizacion,
     mostrarArs: ajustes.mostrarArs,
     estiloFotos: ajustes.estiloFotos,
+    personaje: ajustes.personaje,
   };
   const perfumes = await listaJSON(env, { soloVisibles: true });
   const cuerpo = `{"ajustes":${JSON.stringify(publicos)},"ofertas":${JSON.stringify(vigentes)},"perfumes":${perfumes}}`;

@@ -882,3 +882,6 @@ details.tarjeta-admin summary::-webkit-details-marker { display: none; }
 .solo-lector { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .moneda-costo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .moneda-costo .segmentado span { min-height: 36px; }
+/* Vista del banner animado del cocodrilo: el logo y el cocodrilo sobre negro (se funden con "screen") */
+.oferta-admin__vista--personaje { grid-template-columns: 1fr 1fr; background: radial-gradient(60% 80% at 70% 60%, rgba(201, 163, 92, 0.18), transparent 70%), #080706; }
+.oferta-admin__vista--personaje img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: contain; mix-blend-mode: screen; }

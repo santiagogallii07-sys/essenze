@@ -14,7 +14,8 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
 - Catálogo con filtros: tipo, marca (con buscador), género, acorde, familia, estación y ocasión. También tiene búsqueda por nota y carga progresiva.
 - Buscador de la cabecera con sugerencias mientras se escribe (foto, marca, nombre y precio), navegable con las flechas.
 - **El cocodrilo de la marca** (cruza tirando de una cinta dorada que dibuja el logo):
-  - Primera diapositiva de la cartelera, pie de página (al llegar al final), pantalla de "pedido enviado" e ingreso al panel.
+  - Banner animado en la cartelera, con el estilo de los banners de IA (se prende/apaga y se le cambian los textos en Panel → Ofertas; nunca sale primero). También en el pie de página (al llegar al final), la pantalla de "pedido enviado" y el ingreso al panel.
+- La cartelera mezcla los banners al azar en cada visita y pasa cada uno a los 3 segundos.
   - Ilustraciones enteras (sin recortar), una por lugar: con dos bolsas en la bolsa vacía, de mozo con la bandeja en la búsqueda sin resultados, abrazado a un frasco en el catálogo sin resultados y sentado sobre un frasco en las páginas de error.
   - Los videos están en `web/video` (copias livianas de los de `banners`) y las ilustraciones en `web/img/cocodrilo-*.webp`. Tienen fondo negro y se funden con el fondo oscuro de la tienda. Con "reducir movimiento" o ahorro de datos se ve solo el logo quieto.
 - Ficha con foto en relieve (se inclina con el dedo o el mouse), giro 360° si tiene fotos y visor 3D si tiene modelo `.glb`. Muestra notas, acordes, cuándo usarlo y perfumes parecidos.
