@@ -22,8 +22,15 @@ function escenaOferta(o, p, i) {
 }
 
 function montarCartelera(raiz, ofertas, porId) {
-  // Primera diapositiva: la bienvenida con el cocodrilo de la marca dibujando el logo; después, las ofertas del panel.
-  const lista = [{ ...BIENVENIDA, personaje: true }, ...ofertas];
+  // Las ofertas salen en orden al azar en cada visita, y la bienvenida con el cocodrilo se mezcla entre ellas
+  // (nunca primera, salvo que no haya ofertas cargadas).
+  const mezcladas = [...ofertas];
+  for (let i = mezcladas.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [mezcladas[i], mezcladas[j]] = [mezcladas[j], mezcladas[i]];
+  }
+  const lugar = mezcladas.length ? 1 + Math.floor(Math.random() * mezcladas.length) : 0;
+  const lista = [...mezcladas.slice(0, lugar), { ...BIENVENIDA, personaje: true }, ...mezcladas.slice(lugar)];
   const diapositivas = lista.map((o, i) => {
     const p = porId.get(o.perfume);
     const Titulo = i === 0 ? 'h1' : 'h2';
@@ -114,8 +121,8 @@ function montarCartelera(raiz, ofertas, porId) {
   const barrido = raiz.querySelector('.cartelera__barrido');
   let actual = 0;
   let temporizador = 0;
-  const DURACION = 7000;
-  const DURACION_PERSONAJE = 8500; // el video (6 s) y un rato con el logo ya dibujado
+  const DURACION = 3000;
+  const DURACION_PERSONAJE = 6500; // lo que tarda el cocodrilo en cruzar y dibujar el logo
 
   function ir(n) {
     const sig = (n + carteles.length) % carteles.length;
