@@ -7,6 +7,12 @@ const METODOS = ['Efectivo', 'Transferencia', 'Mercado Pago', 'Tarjeta', 'Dólar
 const SIGUIENTE = { nuevo: 'confirmado', confirmado: 'cobrado', cobrado: 'entregado' };
 const TEXTO_SIGUIENTE = { nuevo: 'Confirmar', confirmado: 'Cobrar', cobrado: 'Marcar entregado' };
 
+// Pesos de una venta: con el dólar de esa venta cuando se cobró en pesos (así no aparecen redondeos).
+function cobradoTexto(p, montoUsd = p.cobrado) {
+  if (p.cobrado_ars && p.cobrado) return ars((montoUsd * p.cobrado_ars) / p.cobrado);
+  return pesos(montoUsd);
+}
+
 function tarjeta(p) {
   const wa = whatsappDe(p.telefono);
   const saludo = encodeURIComponent(`Hola ${p.nombre.split(' ')[0] || ''}! Te escribo de Essenze por tu pedido ${p.id}.`);
@@ -22,13 +28,14 @@ function tarjeta(p) {
         <small>${[p.telefono, p.email].filter(Boolean).map(escapar).join(' · ')}${p.telefono || p.email ? ' · ' : ''}${fechaHora(p.creado)}</small>
       </div>
       <ul class="tarjeta-pedido__items">
-        ${p.items.map((i) => `<li><span>${i.cantidad} ×</span><span>${escapar(i.marca)} ${escapar(i.nombre)}${i.ml ? ` · ${i.ml} ml` : ''}</span><span>${pesos(i.precio * i.cantidad)}</span></li>`).join('')}
+        ${p.items.map((i) => `<li><span>${i.cantidad} ×</span><span>${escapar(i.marca)} ${escapar(i.nombre)}${i.ml ? ` · ${i.ml} ml` : ''}</span><span>${i.precioArs !== undefined ? ars(i.precioArs * i.cantidad) : pesos(i.precio * i.cantidad)}</span></li>`).join('')}
       </ul>
       ${p.comentario ? `<p class="tarjeta-pedido__notas">Cliente: ${escapar(p.comentario)}</p>` : ''}
       ${p.notas ? `<p class="tarjeta-pedido__notas">Nota interna: ${escapar(p.notas)}</p>` : ''}
-      ${p.cobrado !== null && p.cobrado !== undefined ? `<p class="cifra__nota">Cobrado ${pesos(p.cobrado)}${p.metodo_pago ? ` · ${escapar(p.metodo_pago)}` : ''}${p.costo_total ? ` · ganancia ${pesos(p.cobrado - p.costo_total)}` : ''}</p>` : ''}
+      ${p.cobrado !== null && p.cobrado !== undefined ? `<p class="cifra__nota">Cobrado ${cobradoTexto(p)}${p.metodo_pago ? ` · ${escapar(p.metodo_pago)}` : ''}${p.costo_total ? ` · ganancia ${cobradoTexto(p, p.cobrado - p.costo_total)}` : ''}</p>` : ''}
       <div class="tarjeta-pedido__acciones">
         ${wa ? `<a class="boton boton--suave boton--chico" href="https://wa.me/${wa}?text=${saludo}" target="_blank" rel="noopener">${iconoWhatsapp()} WhatsApp</a>` : ''}
+        <button class="boton boton--suave boton--chico" type="button" data-editar>${icono('editar')} Editar</button>
         ${SIGUIENTE[p.estado] ? `<button class="boton boton--lleno boton--chico" type="button" data-siguiente>${TEXTO_SIGUIENTE[p.estado]}</button>` : ''}
         <button class="boton-icono" type="button" data-opciones aria-label="Más opciones">${icono('puntos')}</button>
       </div>
@@ -54,15 +61,68 @@ function dialogoCobro(pedido) {
   return h.cerrada;
 }
 
-async function dialogoVenta() {
-  const lista = await api('/perfumes');
+// Registrar una venta nueva o editar una existente (todo: perfumes, precios, costos, cliente, fecha, estado y cobro).
+// El costo se carga en dólares (o en pesos, si se elige) y queda en dólares como "último costo" del perfume.
+async function dialogoVenta(pedido = null) {
+  const editando = !!pedido;
+  const [lista, ajustes, detalle] = await Promise.all([
+    api('/perfumes'),
+    api('/ajustes'),
+    editando ? api(`/pedidos/${encodeURIComponent(pedido.id)}`) : null,
+  ]);
+  const movimientos = detalle?.movimientos || [];
+  const venta = movimientos.find((m) => m.categoria === 'Venta');
+  // Al editar se usa el dólar de esa venta, así los pesos no cambian con el dólar de hoy.
+  const cot = venta?.cotizacion || dolarActual();
+  const enPesos = cot > 0;
+  const enMoneda = (usdN) => (enPesos ? Math.round((usdN * cot) / 100) * 100 : usdN);
+  const textoMoneda = (n) => (enPesos ? ars(n) : usd(n));
+  const aPesosMov = (m) => (m.moneda === 'ARS' && m.monto_original !== null ? m.monto_original : m.monto * (m.cotizacion || cot || 1));
   const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const lineas = [];
+  const presDe = (l) => lista.find((x) => x.id === l.id)?.presentaciones.find((x) => x.ml === l.ml);
+
+  const lineas = editando
+    ? pedido.items.map((i, origen) => ({
+      id: i.id,
+      ml: i.ml,
+      cantidad: i.cantidad,
+      precio: enPesos ? i.precioArs ?? enMoneda(i.precio) : i.precio,
+      costo: i.costo ?? null,
+      origen,
+      marca: i.marca,
+      nombre: i.nombre,
+    }))
+    : [];
+  const totalLineas = () => lineas.reduce((n, l) => n + (Number(l.precio) || 0) * (Number(l.cantidad) || 0), 0);
+  const unidades = () => lineas.reduce((n, l) => n + (Number(l.cantidad) || 0), 0);
+  const comisionPorDefecto = () => {
+    const usdN = (ajustes.comision || 0) * unidades();
+    return enPesos ? Math.round(usdN * cot) : usdN;
+  };
+
+  // Valores iniciales del cobro al editar (en la moneda del panel).
+  const cobradoInicial = venta ? Math.round(enPesos ? aPesosMov(venta) : venta.monto) : null;
+  const comisionInicial = movimientos.filter((m) => m.categoria === 'Comisiones').reduce((n, m) => n + (enPesos ? aPesosMov(m) : m.monto), 0);
+  // Si el cobro y la comisión coincidían con lo calculado (salvo redondeos), se recalculan solos al cambiar los perfumes.
+  const parecidos = (x, y) => Math.abs(x - y) <= Math.max(1, Math.abs(y) * 0.002);
+  const cobradoAuto = editando && (!venta || parecidos(cobradoInicial, totalLineas()));
+  const comisionAuto = editando && parecidos(comisionInicial, comisionPorDefecto());
+  const fechaInicial = editando ? String(pedido.cobrado_en || pedido.creado).slice(0, 10) : hoy();
+  const cobrado = (e) => ['cobrado', 'entregado'].includes(e);
+
   const h = hoja({
-    titulo: 'Registrar venta',
-    ancho: 640,
+    titulo: editando ? `Editar ${pedido.id}` : 'Registrar venta',
+    ancho: 680,
     html: `
-      <p class="campo__ayuda">Para ventas en persona, por Instagram o cualquier otro canal. Queda cobrada y suma a la caja. Si cargás el costo, se descuenta en la caja como gasto ("Costo de mercadería").</p>
+      <p class="campo__ayuda">${editando
+        ? 'Podés cambiar todo. Si la venta ya estaba cobrada, la caja y el stock se ajustan solos con los datos nuevos (con el dólar de esa venta).'
+        : 'Para ventas en persona, por Instagram o cualquier otro canal. Queda cobrada y suma a la caja.'}
+        El costo va a la caja como gasto ("Costo de mercadería") y queda guardado como último costo del perfume para la próxima venta.</p>
+      ${enPesos ? `<div class="moneda-costo"><span class="campo__rotulo">Costo en</span>
+        <div class="segmentado" role="radiogroup" aria-label="Moneda del costo">
+          <label><input type="radio" name="moneda-costo" value="USD" checked data-moneda-costo><span>USD</span></label>
+          <label><input type="radio" name="moneda-costo" value="ARS" data-moneda-costo><span>Pesos</span></label>
+        </div></div>` : ''}
       <div class="campo selector-perfume">
         <span>Agregar perfume</span>
         <input class="entrada" data-buscar placeholder="Buscar marca o nombre…" autocomplete="off" enterkeyhint="search">
@@ -70,44 +130,74 @@ async function dialogoVenta() {
       </div>
       <div class="lineas-venta" data-lineas></div>
       <div class="form-grilla form-grilla--2">
-        <label class="campo"><span>Cliente (opcional)</span><input data-nombre autocomplete="off"></label>
-        <label class="campo"><span>Teléfono (opcional)</span><input data-telefono type="tel" inputmode="tel" autocomplete="off"></label>
-        <label class="campo"><span>Forma de pago</span><select data-metodo>${METODOS.map((m) => `<option>${m}</option>`).join('')}</select></label>
-        <label class="campo"><span>Fecha</span><input type="date" value="${hoy()}" data-fecha></label>
-        <label class="campo ancho-total"><span>Total cobrado (${dolarActual() ? '$' : 'USD'})</span><input type="number" inputmode="decimal" step="0.01" min="0" data-total placeholder="Se calcula solo"></label>
+        <label class="campo"><span>Cliente${editando ? '' : ' (opcional)'}</span><input data-nombre autocomplete="off" value="${escapar(pedido?.nombre || '')}"></label>
+        <label class="campo"><span>Teléfono${editando ? '' : ' (opcional)'}</span><input data-telefono type="tel" inputmode="tel" autocomplete="off" value="${escapar(pedido?.telefono || '')}"></label>
+        <label class="campo"><span>Email${editando ? '' : ' (opcional)'}</span><input data-email type="email" inputmode="email" autocomplete="off" value="${escapar(pedido?.email || '')}"></label>
+        <label class="campo"><span>Fecha</span><input type="date" value="${fechaInicial}" data-fecha></label>
+        ${editando ? `<label class="campo"><span>Estado</span><select data-estado>${Object.entries(ESTADOS).map(([k, v]) => `<option value="${k}" ${pedido.estado === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` : ''}
+        <label class="campo" data-cobro><span>Forma de pago</span><select data-metodo>${METODOS.map((m) => `<option ${pedido?.metodo_pago === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+        <label class="campo" data-cobro><span>Total cobrado (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" step="0.01" min="0" data-total placeholder="Se calcula solo" value="${cobradoInicial ?? ''}"></label>
+        ${editando ? `<label class="campo" data-cobro><span>Comisión del pasante (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" step="0.01" min="0" data-comision value="${venta ? Math.round(comisionInicial * 100) / 100 : ''}" placeholder="${textoMoneda(comisionPorDefecto())} (automática)"></label>` : ''}
+        ${editando && (pedido.origen === 'web' || pedido.comentario) ? `<label class="campo ancho-total"><span>Comentario del cliente</span><textarea rows="2" data-comentario>${escapar(pedido.comentario || '')}</textarea></label>` : ''}
+        ${editando ? `<label class="campo ancho-total"><span>Nota interna</span><textarea rows="2" data-notas>${escapar(pedido.notas || '')}</textarea></label>` : ''}
       </div>`,
-    pie: '<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-guardar>Registrar venta</button>',
+    pie: `<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-guardar>${editando ? 'Guardar cambios' : 'Registrar venta'}</button>`,
   });
   const d = h.dialogo;
   const buscar = d.querySelector('[data-buscar]');
   const resultados = d.querySelector('[data-resultados]');
   const contLineas = d.querySelector('[data-lineas]');
+  const campoTotal = d.querySelector('[data-total]');
+  const campoComision = d.querySelector('[data-comision]');
+  const campoEstado = d.querySelector('[data-estado]');
+  let totalTocado = false;
+  let comisionTocada = false;
 
-  function total() {
-    return lineas.reduce((n, l) => n + (Number(l.precio) || 0) * (Number(l.cantidad) || 0), 0);
+  // Moneda en que se escribe el costo (por defecto dólares). Adentro siempre se guarda en dólares.
+  let costoEnPesos = false;
+  const costoVisible = (l) => {
+    if (l.costo === null || l.costo === undefined) return '';
+    return costoEnPesos ? l.costoArs ?? Math.round(l.costo * cot) : l.costo;
+  };
+  const equivalente = (l) => {
+    if (!enPesos || l.costo === null || l.costo === undefined) return '';
+    return costoEnPesos ? `≈ ${usd(l.costo)}` : `≈ ${ars(l.costo * cot)}`;
+  };
+  function refrescarTotales() {
+    campoTotal.placeholder = lineas.length ? `${textoMoneda(totalLineas())} (calculado)` : 'Se calcula solo';
+    if (cobradoAuto && !totalTocado) campoTotal.value = lineas.length ? Math.round(totalLineas() * 100) / 100 : '';
+    if (campoComision) {
+      campoComision.placeholder = `${textoMoneda(comisionPorDefecto())} (automática)`;
+      if (comisionAuto && !comisionTocada && campoComision.value !== '') campoComision.value = Math.round(comisionPorDefecto() * 100) / 100;
+    }
   }
-  const enPesos = dolarActual() > 0;
-  const aMoneda = (usd) => (enPesos ? Math.round((usd * dolarActual()) / 100) * 100 : usd);
-  function totalTexto() {
-    return enPesos ? ars(total()) : usd(total());
+  function mostrarCobro() {
+    const visible = !campoEstado || cobrado(campoEstado.value);
+    d.querySelectorAll('[data-cobro]').forEach((el) => { el.hidden = !visible; });
   }
+
   function pintarLineas() {
     contLineas.innerHTML = lineas.map((l, i) => {
       const p = lista.find((x) => x.id === l.id);
+      const opciones = p ? [...p.presentaciones.map((x) => x.ml)] : [];
+      if (!opciones.includes(l.ml)) opciones.push(l.ml);
+      const ultimo = presDe(l)?.costo;
       return `
         <div class="linea-venta" data-i="${i}">
-          <span class="fila-admin__texto"><span class="fila-admin__titulo">${escapar(p.marca)} · ${escapar(p.nombre)}</span></span>
+          <span class="fila-admin__texto"><span class="fila-admin__titulo">${escapar(p?.marca ?? l.marca ?? '')}${(p?.marca ?? l.marca) ? ' · ' : ''}${escapar(p?.nombre ?? l.nombre ?? '')}</span>${p ? '' : '<small class="cifra__nota">Ya no está en el catálogo: se mantiene como estaba.</small>'}</span>
           <button class="boton-icono" type="button" data-quitar aria-label="Quitar">${icono('cerrar')}</button>
           <div class="linea-venta__datos">
-            <label class="campo"><span>Tamaño</span><select data-campo="ml">${p.presentaciones.map((x) => `<option value="${x.ml}" ${x.ml === l.ml ? 'selected' : ''}>${x.ml ? `${x.ml} ml` : 'Único'}</option>`).join('')}</select></label>
+            <label class="campo"><span>Tamaño</span><select data-campo="ml" ${p ? '' : 'disabled'}>${opciones.map((ml) => `<option value="${ml}" ${ml === l.ml ? 'selected' : ''}>${ml ? `${ml} ml` : 'Único'}</option>`).join('')}</select></label>
             <label class="campo"><span>Cantidad</span><input type="number" inputmode="numeric" min="1" value="${l.cantidad}" data-campo="cantidad"></label>
             <label class="campo"><span>Precio c/u (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" min="0" step="0.01" value="${l.precio}" data-campo="precio"></label>
-            <label class="campo"><span>Costo c/u (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" min="0" step="0.01" value="${l.costo ?? ''}" placeholder="Opcional" data-campo="costo"></label>
+            <label class="campo"><span>Costo c/u (${costoEnPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" min="0" step="${costoEnPesos ? 1 : 0.01}" value="${costoVisible(l)}" placeholder="Opcional" data-campo="costo">
+              <small class="campo__ayuda" data-equivalente>${equivalente(l)}${l.recordado ? ' · último costo cargado' : ultimo && l.costo === null ? `Último: ${usd(ultimo)}` : ''}</small></label>
           </div>
         </div>`;
     }).join('');
-    d.querySelector('[data-total]').placeholder = lineas.length ? `${totalTexto()} (calculado)` : 'Se calcula solo';
+    refrescarTotales();
   }
+
   buscar.addEventListener('input', demorar(() => {
     const q = norm(buscar.value).split(/\s+/).filter(Boolean);
     const r = q.length ? lista.filter((p) => q.every((w) => norm(`${p.marca} ${p.nombre}`).includes(w))).slice(0, 8) : [];
@@ -119,56 +209,102 @@ async function dialogoVenta() {
     if (!b) return;
     const p = lista.find((x) => x.id === b.dataset.id);
     const pres = p.presentaciones[0];
-    lineas.push({ id: p.id, ml: pres.ml, cantidad: 1, precio: aMoneda(pres.precio), costo: pres.costo ? aMoneda(pres.costo) : null });
+    // El costo arranca con el último que se cargó para ese perfume y tamaño.
+    lineas.push({ id: p.id, ml: pres.ml, cantidad: 1, precio: enMoneda(pres.precio), costo: pres.costo ?? null, recordado: pres.costo !== null && pres.costo !== undefined });
     buscar.value = '';
     resultados.hidden = true;
     pintarLineas();
     buscar.focus();
   });
   contLineas.addEventListener('input', (e) => {
-    const i = Number(e.target.closest('[data-i]')?.dataset.i);
+    const fila = e.target.closest('[data-i]');
     const campo = e.target.dataset.campo;
-    if (!campo) return;
-    lineas[i][campo] = e.target.value === '' && campo === 'costo' ? null : Number(e.target.value);
+    if (!fila || !campo) return;
+    const l = lineas[Number(fila.dataset.i)];
+    if (campo === 'costo') {
+      const v = e.target.value === '' ? null : Number(e.target.value);
+      if (costoEnPesos) {
+        l.costoArs = v;
+        l.costo = v === null ? null : Math.round((v / cot) * 100) / 100;
+      } else {
+        delete l.costoArs;
+        l.costo = v;
+      }
+    } else {
+      l[campo] = Number(e.target.value);
+    }
     if (campo === 'ml') {
-      const p = lista.find((x) => x.id === lineas[i].id);
-      const pres = p.presentaciones.find((x) => x.ml === lineas[i].ml);
+      const pres = presDe(l);
       if (pres) {
-        lineas[i].precio = aMoneda(pres.precio);
-        lineas[i].costo = pres.costo ? aMoneda(pres.costo) : lineas[i].costo;
+        l.precio = enMoneda(pres.precio);
+        if (pres.costo !== null && pres.costo !== undefined) {
+          l.costo = pres.costo;
+          delete l.costoArs;
+        }
       }
       pintarLineas();
-    } else {
-      d.querySelector('[data-total]').placeholder = `${totalTexto()} (calculado)`;
+      return;
     }
+    if (campo === 'costo') {
+      l.recordado = false;
+      fila.querySelector('[data-equivalente]').textContent = equivalente(l);
+    }
+    refrescarTotales();
   });
   contLineas.addEventListener('click', (e) => {
     if (!e.target.closest('[data-quitar]')) return;
     lineas.splice(Number(e.target.closest('[data-i]').dataset.i), 1);
     pintarLineas();
   });
+  campoTotal.addEventListener('input', () => { totalTocado = true; });
+  d.querySelectorAll('[data-moneda-costo]').forEach((r) => r.addEventListener('change', () => {
+    costoEnPesos = r.value === 'ARS' && r.checked;
+    pintarLineas();
+  }));
+  campoComision?.addEventListener('input', () => { comisionTocada = true; });
+  campoEstado?.addEventListener('change', mostrarCobro);
+
   d.querySelector('[data-guardar]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
     if (!lineas.length) return aviso('Agregá al menos un perfume.', 'error');
-    try {
-      await api('/pedidos', {
-        metodo: 'POST',
-        datos: {
-          items: lineas.map((l) => (enPesos ? { id: l.id, ml: l.ml, cantidad: l.cantidad, precioArs: l.precio, costoArs: l.costo } : l)),
-          nombre: d.querySelector('[data-nombre]').value,
-          telefono: d.querySelector('[data-telefono]').value,
-          metodo_pago: d.querySelector('[data-metodo]').value,
-          fecha: d.querySelector('[data-fecha]').value,
-          [dolarActual() ? 'cobradoArs' : 'cobrado']: d.querySelector('[data-total]').value,
-        },
+    const valor = (sel) => d.querySelector(sel)?.value;
+    const datos = {
+      items: lineas.map((l) => ({
+        id: l.id,
+        ml: l.ml,
+        cantidad: l.cantidad,
+        [enPesos ? 'precioArs' : 'precio']: l.precio,
+        // En pesos se manda lo escrito tal cual; si no se tocó, va el costo en dólares que ya tenía.
+        ...(costoEnPesos && l.costoArs !== undefined && l.costoArs !== null ? { costoArs: l.costoArs } : { costo: l.costo }),
+        ...(l.origen !== undefined ? { origen: l.origen } : {}),
+      })),
+      nombre: valor('[data-nombre]'),
+      telefono: valor('[data-telefono]'),
+      email: valor('[data-email]'),
+      metodo_pago: valor('[data-metodo]'),
+      fecha: valor('[data-fecha]'),
+      [enPesos ? 'cobradoArs' : 'cobrado']: campoTotal.value,
+    };
+    if (editando) {
+      Object.assign(datos, {
+        estado: campoEstado.value,
+        [enPesos ? 'comisionArs' : 'comision']: campoComision.value,
+        notas: valor('[data-notas]'),
+        ...(d.querySelector('[data-comentario]') ? { comentario: valor('[data-comentario]') } : {}),
       });
-      aviso('Venta registrada');
+    }
+    try {
+      if (editando) await api(`/pedidos/${encodeURIComponent(pedido.id)}`, { metodo: 'PUT', datos });
+      else await api('/pedidos', { metodo: 'POST', datos });
+      aviso(editando ? 'Venta actualizada' : 'Venta registrada');
       h.cerrar(true);
     } catch (err) {
       avisoError(err);
     }
     return undefined;
   }));
-  setTimeout(() => buscar.focus(), 80);
+  pintarLineas();
+  mostrarCobro();
+  if (!editando) setTimeout(() => buscar.focus(), 80);
   return h.cerrada.then((v) => v === true);
 }
 
@@ -238,6 +374,14 @@ export async function montar({ vista, consulta, app }) {
     const art = e.target.closest('[data-id]');
     if (!art) return;
     const p = datos.pedidos.find((x) => x.id === art.dataset.id);
+    if (e.target.closest('[data-editar]')) {
+      try {
+        if (await dialogoVenta(p)) await cargar();
+      } catch (err) {
+        avisoError(err);
+      }
+      return;
+    }
     if (e.target.closest('[data-siguiente]')) {
       const sig = SIGUIENTE[p.estado];
       if (sig === 'cobrado') {

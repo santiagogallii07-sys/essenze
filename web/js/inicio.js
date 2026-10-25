@@ -2,6 +2,7 @@ import { TIPOS } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, observarRevelado } from './interfaz.js';
 import { enOferta, hayStock, normalizar } from './datos.js';
 import { icono } from './iconos.js';
+import { videoPersonaje, reproducir, puedeAnimar } from './personaje.js';
 
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -20,17 +21,27 @@ function escenaOferta(o, p, i) {
   return '';
 }
 
-function montarCartelera(raiz, ofertas, porId, perfumes) {
-  // Sin ofertas cargadas, una bienvenida con un perfume destacado (con foto) de protagonista.
-  let protagonista = perfumes.find((p) => p.destacado && p.imagen);
-  if (!protagonista) {
-    const candidatos = perfumes.filter((p) => p.imagen && p.fondo === 'recorte' && (p.tipo === 'nicho' || p.tipo.startsWith('disenador')));
-    protagonista = candidatos[Math.floor(Math.random() * candidatos.length)] || perfumes[0];
-  }
-  const lista = ofertas.length ? ofertas : [{ ...BIENVENIDA, perfume: protagonista?.id }];
+function montarCartelera(raiz, ofertas, porId) {
+  // Primera diapositiva: la bienvenida con el cocodrilo de la marca dibujando el logo; después, las ofertas del panel.
+  const lista = [{ ...BIENVENIDA, personaje: true }, ...ofertas];
   const diapositivas = lista.map((o, i) => {
     const p = porId.get(o.perfume);
     const Titulo = i === 0 ? 'h1' : 'h2';
+    if (o.personaje) {
+      return `
+    <article class="cartel cartel--personaje ${i === 0 ? 'es-activo' : ''}" aria-roledescription="diapositiva" aria-label="${i + 1} de ${lista.length}" ${i === 0 ? '' : 'aria-hidden="true" inert'}>
+      <div class="cartel__texto">
+        <${Titulo} class="cartel__titulo">${escapar(o.titulo)}</${Titulo}>
+        <span class="filete" aria-hidden="true"></span>
+        <p class="cartel__bajada">${escapar(o.texto)}</p>
+        <a class="boton boton--contorno" href="${escapar(o.enlace)}">${escapar(o.boton)} ${icono('flecha')}</a>
+      </div>
+      <div class="cartel__escena cartel__escena--personaje" aria-hidden="true">
+        <div class="cartel__haz"></div>
+        ${videoPersonaje({ clase: 'cartel__personaje' })}
+      </div>
+    </article>`;
+    }
     // Banner hecho con IA: la imagen completa es la diapositiva y todo el banner es un enlace.
     if (o.formato === 'banner' && o.imagen) {
       return `
@@ -91,6 +102,11 @@ function montarCartelera(raiz, ofertas, porId, perfumes) {
     });
   }
 
+  // El cocodrilo dibuja el logo al abrir la página y cada vez que vuelve su diapositiva.
+  const videoCartel = raiz.querySelector('.cartel__personaje');
+  const conPersonaje = (cartel) => cartel.classList.contains('cartel--personaje');
+  if (conPersonaje(raiz.querySelector('.cartel.es-activo'))) reproducir(videoCartel);
+
   if (lista.length < 2) return;
 
   const carteles = [...raiz.querySelectorAll('.cartel')];
@@ -99,6 +115,7 @@ function montarCartelera(raiz, ofertas, porId, perfumes) {
   let actual = 0;
   let temporizador = 0;
   const DURACION = 7000;
+  const DURACION_PERSONAJE = 8500; // el video (6 s) y un rato con el logo ya dibujado
 
   function ir(n) {
     const sig = (n + carteles.length) % carteles.length;
@@ -107,7 +124,9 @@ function montarCartelera(raiz, ofertas, porId, perfumes) {
     carteles[actual].setAttribute('aria-hidden', 'true');
     carteles[actual].inert = true;
     botones[actual].removeAttribute('aria-current');
+    if (conPersonaje(carteles[actual])) videoCartel.pause();
     actual = sig;
+    if (conPersonaje(carteles[actual])) reproducir(videoCartel);
     carteles[actual].classList.add('es-activo');
     carteles[actual].removeAttribute('aria-hidden');
     carteles[actual].inert = false;
@@ -122,12 +141,13 @@ function montarCartelera(raiz, ofertas, porId, perfumes) {
 
   function reiniciar() {
     clearTimeout(temporizador);
-    raiz.style.setProperty('--duracion', `${DURACION}ms`);
+    const duracion = conPersonaje(carteles[actual]) && puedeAnimar() ? DURACION_PERSONAJE : DURACION;
+    raiz.style.setProperty('--duracion', `${duracion}ms`);
     botones.forEach((b) => b.classList.remove('es-corriendo'));
     if (reducido.matches || raiz.dataset.pausa) return;
     void botones[actual].offsetWidth;
     botones[actual].classList.add('es-corriendo');
-    temporizador = setTimeout(() => ir(actual + 1), DURACION);
+    temporizador = setTimeout(() => ir(actual + 1), duracion);
   }
 
   botones.forEach((b, i) => b.addEventListener('click', () => ir(i)));
@@ -271,7 +291,7 @@ function elegirDestacados(perfumes) {
 const { perfumes, ofertas } = await iniciarPagina('inicio');
 const porId = new Map(perfumes.map((p) => [p.id, p]));
 
-montarCartelera(document.querySelector('[data-cartelera]'), ofertas, porId, perfumes);
+montarCartelera(document.querySelector('[data-cartelera]'), ofertas, porId);
 montarTipos(document.querySelector('[data-tipos]'), perfumes);
 montarMarcas(document.querySelector('[data-marcas]'), perfumes);
 montarAcordes(document.querySelector('[data-acordes]'), perfumes);

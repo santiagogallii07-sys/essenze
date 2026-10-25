@@ -12,6 +12,11 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
 **Tienda** (`/`, `/catalogo`, `/perfume?p=…`)
 - Cartelera de ofertas que se arma desde el panel, con cinta de marcas y vidriera de destacados.
 - Catálogo con filtros: tipo, marca (con buscador), género, acorde, familia, estación y ocasión. También tiene búsqueda por nota y carga progresiva.
+- Buscador de la cabecera con sugerencias mientras se escribe (foto, marca, nombre y precio), navegable con las flechas.
+- **El cocodrilo de la marca** (cruza tirando de una cinta dorada que dibuja el logo):
+  - Primera diapositiva de la cartelera, pie de página (al llegar al final), pantalla de "pedido enviado" e ingreso al panel.
+  - Ilustraciones enteras (sin recortar), una por lugar: con dos bolsas en la bolsa vacía, de mozo con la bandeja en la búsqueda sin resultados, abrazado a un frasco en el catálogo sin resultados y sentado sobre un frasco en las páginas de error.
+  - Los videos están en `web/video` (copias livianas de los de `banners`) y las ilustraciones en `web/img/cocodrilo-*.webp`. Tienen fondo negro y se funden con el fondo oscuro de la tienda. Con "reducir movimiento" o ahorro de datos se ve solo el logo quieto.
 - Ficha con foto en relieve (se inclina con el dedo o el mouse), giro 360° si tiene fotos y visor 3D si tiene modelo `.glb`. Muestra notas, acordes, cuándo usarlo y perfumes parecidos.
 - Bolsa de compras: en el celular se abre como hoja inferior que se cierra deslizando.
 - El pedido se manda por WhatsApp y además queda guardado en el panel.
@@ -25,6 +30,8 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
   - Tamaños con precio, precio anterior, costo, stock y margen.
   - Aroma, con la opción de pegar el texto copiado de Fragrantica.
 - **Pedidos:** se pasan por nuevo → confirmado → cobrado → entregado, con WhatsApp directo al cliente. También se registran ventas hechas fuera de la web.
+  - **Editar** cambia todo de una venta (perfumes, cantidades, precios, costos, cliente, fecha, estado, cobro y comisión); si ya estaba cobrada, la caja y el stock se rehacen con el dólar de esa venta.
+  - El costo se carga en dólares (o en pesos, eligiéndolo arriba de los perfumes) y queda en dólares como último costo del perfume: la próxima venta lo trae solo, con su equivalente en la otra moneda.
 - **Caja:** ingresos y gastos (en USD o pesos), saldo, margen, gráfico de 6 meses, gastos por categoría y planilla CSV.
 - **Ofertas:** diapositivas de la cartelera con fechas de inicio y fin, y descuentos por marca, por tipo o por búsqueda.
 - **Importar Excel:** lee el catálogo con sus fotos y muestra qué cambia antes de guardar.

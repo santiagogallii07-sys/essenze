@@ -17,9 +17,9 @@ export const onRequestPost = manejar(async ({ request, env }) => {
   const dolar = (await leerAjustes(env)).cotizacion;
   if (!dolar) throw new ErrorCliente(400, 'Cargá el valor del dólar en Ajustes antes de importar ventas en pesos.');
 
+  // Primero se calculan los ids; las ventas que ya están (aunque se hayan editado después) no se tocan.
   const vistas = new Map();
-  const sentencias = [];
-  let validas = 0;
+  const lista = [];
   for (const f of filas) {
     const fecha = /^\d{4}-\d{2}-\d{2}$/.test(f.fecha || '') ? f.fecha : null;
     const nombre = texto(f.nombre, 160);
@@ -31,6 +31,17 @@ export const onRequestPost = manejar(async ({ request, env }) => {
     const n = (vistas.get(base) || 0) + 1;
     vistas.set(base, n);
     const id = `X-${fecha.slice(2).replace(/-/g, '')}-${await huella(`${base}|${n}`)}`;
+    lista.push({ id, fecha, nombre, precio, costo, comision });
+  }
+  const { results: yaEstan } = lista.length
+    ? await env.DB.prepare('SELECT id FROM pedidos WHERE id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(lista.map((x) => x.id))).all()
+    : { results: [] };
+  const existentes = new Set(yaEstan.map((r) => r.id));
+  const sentencias = [];
+  let validas = 0;
+  for (const { id, fecha, nombre, precio, costo, comision } of lista) {
+    validas++;
+    if (existentes.has(id)) continue;
     const item = { id: null, marca: '', nombre, concentracion: '', ml: 0, cantidad: 1, precio: redondear(precio / dolar), costo: costo ? redondear(costo / dolar) : null };
 
     sentencias.push(env.DB.prepare(
@@ -47,9 +58,8 @@ export const onRequestPost = manejar(async ({ request, env }) => {
          VALUES (?, ?, 'egreso', 'Comisiones', ?, ?, 'ARS', ?, ?, ?)`,
       ).bind(`${id}-C`, fecha, `Comisión pasante · ${nombre}`, redondear(comision / dolar), comision, dolar, id));
     }
-    validas++;
   }
-  if (!sentencias.length) throw new ErrorCliente(400, 'No encontramos ventas válidas (fecha, nombre y precio de venta).');
+  if (!validas) throw new ErrorCliente(400, 'No encontramos ventas válidas (fecha, nombre y precio de venta).');
   const antes = await env.DB.prepare("SELECT count(*) AS n FROM pedidos WHERE origen = 'excel'").first();
   for (let i = 0; i < sentencias.length; i += 90) await env.DB.batch(sentencias.slice(i, i + 90));
   const despues = await env.DB.prepare("SELECT count(*) AS n FROM pedidos WHERE origen = 'excel'").first();

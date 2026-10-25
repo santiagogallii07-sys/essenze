@@ -4,10 +4,11 @@ import { CONFIG, TIPOS } from './config.js';
 import { icono, iconoWhatsapp } from './iconos.js';
 import { frascoSVG } from './frasco.js';
 import { arrastrarParaCerrar } from './arrastre.js';
+import { videoPersonaje, fotoPersonaje, reproducir, reproducirAlVer } from './personaje.js';
 import * as carrito from './carrito.js';
 import {
   obtenerCatalogo, precio, precioArs, precioDesde, hayStock, enOferta, descuentoMaximo,
-  presentacionesOrdenadas, enlacePerfume, disponible, maximoDe, textoMl,
+  presentacionesOrdenadas, enlacePerfume, disponible, maximoDe, textoMl, normalizar, textoBuscable,
 } from './datos.js';
 
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -70,7 +71,8 @@ function pie() {
   return `
   <div class="contenedor pie__grilla">
     <div class="pie__marca">
-      <img src="/img/logo-completo.png" alt="Essenze Parfum &amp; Decants" width="220" height="267" loading="lazy">
+      <p class="solo-lector">Essenze Parfum &amp; Decants</p>
+      ${videoPersonaje({ clase: 'pie__personaje' })}
     </div>
     <div>
       <h2 class="pie__titulo">Catálogo</h2>
@@ -286,6 +288,7 @@ function montarBolsa() {
 
       <section class="bolsa__cuerpo" data-paso="items">
         <div class="bolsa__vacia">
+          ${fotoPersonaje('bolsas', 'bolsa__personaje')}
           <p class="bolsa__vacia-titulo">Tu bolsa está vacía</p>
           <p>Mirá el catálogo y agregá los perfumes que te gusten.</p>
           <a class="boton boton--contorno" href="/catalogo" data-foco>Ver catálogo</a>
@@ -329,7 +332,7 @@ function montarBolsa() {
       </section>
 
       <section class="bolsa__cuerpo bolsa__enviado" data-paso="enviado" hidden>
-        <div class="enviado__sello">${iconoWhatsapp()}</div>
+        <div class="enviado__personaje">${videoPersonaje()}</div>
         <p class="enviado__titulo">Abrimos WhatsApp con tu pedido</p>
         <p>Solo falta que toques <strong>enviar</strong> en WhatsApp. Te respondemos para coordinar el pago y la entrega.</p>
         <p class="enviado__numero">Pedido <span data-numero></span></p>
@@ -398,6 +401,8 @@ function montarBolsa() {
     window.open(url, '_blank', 'noopener');
     guardarPedido(numero, datos, lineas);
     mostrarPaso('enviado');
+    // El cocodrilo festeja el pedido dibujando el logo.
+    reproducir(bolsa.querySelector('.enviado__personaje video'));
   });
 
   bolsa.querySelector('form').addEventListener('input', (e) => {
@@ -593,6 +598,31 @@ export function observarRevelado(raiz = document) {
 
 /* ---------- Buscador ---------- */
 
+const SUGERENCIAS = 8;
+
+// Ordena los perfumes que coinciden: primero los que tienen la búsqueda en la marca o el nombre
+// (mejor si el nombre empieza así), después los que coinciden por notas o familia.
+function buscarPerfumes(perfumes, consulta) {
+  const palabras = normalizar(consulta).split(/\s+/).filter(Boolean);
+  if (!palabras.length) return [];
+  const frase = palabras.join(' ');
+  const encontrados = [];
+  for (const p of perfumes) {
+    p._busca ??= textoBuscable(p);
+    if (!palabras.every((w) => p._busca.includes(w))) continue;
+    const nombre = normalizar(`${p.marca} ${p.nombre}`);
+    const soloNombre = normalizar(p.nombre);
+    let puntos = 3;
+    if (palabras.every((w) => nombre.includes(w))) puntos = 2;
+    if (soloNombre.startsWith(frase) || nombre.startsWith(frase)) puntos = 1;
+    if (soloNombre === frase) puntos = 0;
+    encontrados.push({ p, puntos: puntos + (hayStock(p) ? 0 : 0.5) });
+  }
+  return encontrados
+    .sort((a, b) => a.puntos - b.puntos || Number(!!b.p.destacado) - Number(!!a.p.destacado) || `${a.p.marca} ${a.p.nombre}`.localeCompare(`${b.p.marca} ${b.p.nombre}`, 'es'))
+    .map((x) => x.p);
+}
+
 function montarBusqueda() {
   const d = document.createElement('dialog');
   d.className = 'busqueda';
@@ -600,17 +630,94 @@ function montarBusqueda() {
   d.innerHTML = `
     <form class="busqueda__form contenedor" action="/catalogo" method="get" role="search">
       ${icono('buscar')}
-      <input name="q" type="search" placeholder="Perfume, marca o nota (ej. vainilla)" aria-label="Buscar" autocomplete="off" enterkeyhint="search">
+      <input name="q" type="search" placeholder="Perfume, marca o nota (ej. vainilla)" aria-label="Buscar" autocomplete="off" enterkeyhint="search"
+        role="combobox" aria-expanded="false" aria-controls="sugerencias-busqueda" aria-autocomplete="list">
       <button class="boton-icono" type="button" data-cerrar aria-label="Cerrar búsqueda">${icono('cerrar')}</button>
-    </form>`;
+    </form>
+    <div class="busqueda__sugerencias" data-sugerencias hidden>
+      <ul class="contenedor" id="sugerencias-busqueda" role="listbox" aria-label="Perfumes sugeridos"></ul>
+    </div>`;
   document.body.append(d);
+  const form = d.querySelector('form');
+  const entrada = d.querySelector('input');
+  const caja = d.querySelector('[data-sugerencias]');
+  const listaEl = caja.querySelector('ul');
+  let perfumes = null;
+  let espera = 0;
+  let activa = -1;
+
+  const opciones = () => [...listaEl.querySelectorAll('[role="option"]')];
+  function marcar(i) {
+    const todas = opciones();
+    activa = todas.length ? (i + todas.length) % todas.length : -1;
+    todas.forEach((o, n) => o.setAttribute('aria-selected', String(n === activa)));
+    if (activa >= 0) {
+      entrada.setAttribute('aria-activedescendant', todas[activa].id);
+      todas[activa].scrollIntoView({ block: 'nearest' });
+    } else {
+      entrada.removeAttribute('aria-activedescendant');
+    }
+  }
+  function cerrarSugerencias() {
+    caja.hidden = true;
+    entrada.setAttribute('aria-expanded', 'false');
+    marcar(-1);
+  }
+
+  async function sugerir() {
+    const q = entrada.value.trim();
+    if (!q) return cerrarSugerencias();
+    try {
+      perfumes ??= (await obtenerCatalogo()).perfumes;
+    } catch {
+      return cerrarSugerencias(); // sin conexión: queda el buscar de siempre
+    }
+    if (entrada.value.trim() !== q) return undefined; // llegó otra letra mientras cargaba
+    const encontrados = buscarPerfumes(perfumes, q);
+    const todos = `/catalogo?q=${encodeURIComponent(q)}`;
+    listaEl.innerHTML = encontrados.length
+      ? `${encontrados.slice(0, SUGERENCIAS).map((p, i) => `
+        <li><a class="sugerencia" id="sugerencia-${i}" role="option" aria-selected="false" href="${enlacePerfume(p)}">
+          <span class="sugerencia__foto">${imagenPerfume(p)}</span>
+          <span class="sugerencia__texto"><span class="sugerencia__marca">${escapar(p.marca)}</span><span class="sugerencia__nombre">${escapar(p.nombre)}</span>${p.concentracion ? `<span class="sugerencia__detalle">${escapar(p.concentracion)}</span>` : ''}</span>
+          <span class="sugerencia__precio">${hayStock(p) ? precio(precioDesde(p)) : 'Sin stock'}</span>
+        </a></li>`).join('')}
+        <li><a class="sugerencia-todos" href="${todos}">${encontrados.length > SUGERENCIAS ? `Ver los ${encontrados.length} resultados` : 'Ver en el catálogo'} ${icono('flecha')}</a></li>`
+      : `<li class="sugerencia-vacia">${fotoPersonaje('bandeja', 'sugerencia-vacia__foto')}<span>No encontramos “${escapar(q)}”. Probá con la marca o una nota, como vainilla u oud.</span></li>`;
+    caja.hidden = false;
+    entrada.setAttribute('aria-expanded', 'true');
+    marcar(-1);
+    return undefined;
+  }
+
+  entrada.addEventListener('input', () => {
+    clearTimeout(espera);
+    espera = setTimeout(sugerir, 120);
+  });
+  entrada.addEventListener('keydown', (e) => {
+    if (caja.hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      marcar(activa + (e.key === 'ArrowDown' ? 1 : -1));
+    } else if (e.key === 'Enter' && activa >= 0) {
+      e.preventDefault();
+      opciones()[activa].click();
+    }
+  });
+  form.addEventListener('submit', (e) => {
+    if (!entrada.value.trim()) e.preventDefault();
+  });
+  d.addEventListener('close', cerrarSugerencias);
   d.addEventListener('click', (e) => {
-    if (e.target === d || e.target.closest('[data-cerrar]')) d.close();
+    if (e.target === d || e.target === caja || e.target.closest('[data-cerrar]')) d.close();
   });
   document.addEventListener('click', (e) => {
     if (!e.target.closest('[data-abrir-busqueda]')) return;
     d.showModal();
-    d.querySelector('input').focus();
+    entrada.focus();
+    if (entrada.value.trim()) sugerir();
+    // Se precarga el catálogo para que la primera letra ya muestre resultados.
+    obtenerCatalogo().then((c) => { perfumes ??= c.perfumes; }).catch(() => {});
   });
 }
 
@@ -670,6 +777,8 @@ export async function iniciarPagina(pagina, { pildora = true } = {}) {
     throw new Error('catálogo no disponible');
   }
   pieEl.innerHTML = pie();
+  // Al llegar al final, el cocodrilo cruza el pie y dibuja el logo.
+  reproducirAlVer(pieEl.querySelector('.pie__personaje'));
   perfumesPorId = new Map(datos.perfumes.map((p) => [p.id, p]));
   document.addEventListener('carrito:cambio', () => {
     pintarContador();

@@ -16,3 +16,7 @@
 
 /img/*
   Cache-Control: public, max-age=604800
+
+# Los videos llevan la versión en el nombre (…-v1.mp4): si cambian, cambia el nombre.
+/video/*
+  Cache-Control: public, max-age=31536000, immutable

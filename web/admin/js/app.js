@@ -1,6 +1,7 @@
 // Panel de administración: ingreso, navegación y enrutado por #/seccion.
 import { api } from './api.js';
 import { icono, escapar, hoja, avisoError, fijarDolar } from './ui.js';
+import { reproducir } from '/js/personaje.js';
 
 const SECCIONES = [
   { id: 'resumen', texto: 'Inicio', icono: 'inicio', modulo: './vistas/resumen.js' },
@@ -131,6 +132,8 @@ function mostrarIngreso() {
   el.panel.hidden = true;
   el.ingreso.hidden = false;
   el.ingreso.querySelector('input').focus();
+  // El cocodrilo de la marca dibuja el logo arriba del formulario.
+  reproducir(el.ingreso.querySelector('.ingreso__personaje'));
 }
 
 async function mostrarPanel() {

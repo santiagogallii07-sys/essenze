@@ -2,6 +2,7 @@ import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, agregarABolsa, escapar, enlaceWhatsapp, observarRevelado } from './interfaz.js';
 import { precio, precioArs, presentacionesOrdenadas, hayStock, obtenerPerfume, disponible, maximoDe, textoMl, normalizar } from './datos.js';
 import { montarVisor } from './visor.js';
+import { fotoPersonaje } from './personaje.js';
 import { icono, iconoWhatsapp } from './iconos.js';
 
 const { perfumes } = await iniciarPagina('catalogo', { pildora: false });
@@ -19,6 +20,7 @@ if (!p) {
   document.title = 'Perfume no encontrado · Essenze';
   raiz.innerHTML = `
     <div class="contenedor no-encontrado">
+      ${fotoPersonaje('sentado', 'no-encontrado__personaje')}
       <h1 class="titulo-seccion">No encontramos este perfume</h1>
       <p>Puede que ya no esté en el catálogo o que el enlace esté incompleto.</p>
       <a class="boton boton--contorno" href="/catalogo">Ver catálogo ${icono('flecha')}</a>
