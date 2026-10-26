@@ -18,9 +18,16 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
 - La cartelera mezcla los banners al azar en cada visita y pasa cada uno a los 3 segundos.
   - Ilustraciones enteras (sin recortar), una por lugar: con dos bolsas en la bolsa vacía, de mozo con la bandeja en la búsqueda sin resultados, abrazado a un frasco en el catálogo sin resultados y sentado sobre un frasco en las páginas de error.
   - Los videos están en `web/video` (copias livianas de los de `banners`) y las ilustraciones en `web/img/cocodrilo-*.webp`. Tienen fondo negro y se funden con el fondo oscuro de la tienda. Con "reducir movimiento" o ahorro de datos se ve solo el logo quieto.
+- Franja de confianza bajo la cartelera: perfumes 100% originales, envíos a todo el país o retiro en la ciudad cargada en Ajustes, y medios de pago (transferencia, efectivo, tarjeta con link de Mercado Pago). Para cambiar esos textos hay que editar `garantias()` en `web/js/interfaz.js`. La ficha muestra una versión corta debajo del botón de compra.
+- **Favoritos:**
+  - El corazón está en cada tarjeta y en la ficha.
+  - Los favoritos se guardan en el navegador del cliente, sin cuenta.
+  - En la página `/favoritos` se comparan lado a lado: tamaños y precios, familia, acordes, notas y cuándo usarlo. Desde ahí se agregan a la bolsa o se consulta por todos juntos por WhatsApp.
+  - En la computadora se llega con el corazón de la cabecera; en el celular, desde el menú.
 - Ficha con foto en relieve (se inclina con el dedo o el mouse), giro 360° si tiene fotos y visor 3D si tiene modelo `.glb`. Muestra notas, acordes, cuándo usarlo y perfumes parecidos.
 - Bolsa de compras: en el celular se abre como hoja inferior que se cierra deslizando.
-- El pedido se manda por WhatsApp y además queda guardado en el panel.
+- El pedido se manda por WhatsApp y además queda guardado en el panel. Para enviarlo hay que tildar que se aceptan los Términos y la Política de privacidad.
+- **Términos y condiciones** (`/terminos`) y **Política de privacidad** (`/privacidad`), enlazadas en el pie y en el formulario del pedido. Los textos se editan en `web/terminos.html` y `web/privacidad.html`.
 - Precio en USD, con referencia en pesos opcional.
 
 **Panel** (`/admin`, se instala en el celular como app)
