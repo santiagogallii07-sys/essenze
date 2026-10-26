@@ -1,5 +1,5 @@
 import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
-import { iniciarPagina, tarjeta, activarTarjetas, agregarABolsa, escapar, enlaceWhatsapp, observarRevelado } from './interfaz.js';
+import { iniciarPagina, tarjeta, activarTarjetas, agregarABolsa, escapar, enlaceWhatsapp, observarRevelado, botonFavorito, garantias } from './interfaz.js';
 import { precio, precioArs, presentacionesOrdenadas, hayStock, obtenerPerfume, disponible, maximoDe, textoMl, normalizar } from './datos.js';
 import { montarVisor } from './visor.js';
 import { fotoPersonaje } from './personaje.js';
@@ -84,7 +84,7 @@ function pintarFicha(p) {
     <li><a href="/catalogo?marca=${encodeURIComponent(p.marca)}">${escapar(p.marca)}</a></li>`;
 
   document.querySelector('[data-info]').innerHTML = `
-    <p class="ficha__marca"><a href="/catalogo?marca=${encodeURIComponent(p.marca)}">${escapar(p.marca)}</a></p>
+    <div class="ficha__arriba"><p class="ficha__marca"><a href="/catalogo?marca=${encodeURIComponent(p.marca)}">${escapar(p.marca)}</a></p>${botonFavorito(p, 'ficha__favorito')}</div>
     <h1 class="ficha__nombre">${escapar(p.nombre)}</h1>
     ${meta ? `<p class="ficha__meta">${meta}</p>` : ''}
     <span class="filete" aria-hidden="true"></span>
@@ -109,6 +109,7 @@ function pintarFicha(p) {
       </div>
       <p class="compra__stock" data-stock></p>
       <a class="enlace-whatsapp" href="${consulta}" target="_blank" rel="noopener">${iconoWhatsapp()} ${conStock ? 'Consultar por este perfume' : 'Avisame cuando vuelva a entrar'}</a>
+      ${garantias({ compacta: true })}
     </form>`;
 
   const despues = document.querySelector('[data-despues]');
@@ -169,7 +170,7 @@ function pintarFicha(p) {
     arsEl.textContent = ars ? `${ars} (precio en dólares)` : '';
     if (!disponible(x)) stockEl.textContent = '';
     else if (x.stock !== null && x.stock !== undefined && x.stock <= 2) stockEl.textContent = `Quedan ${x.stock} en ${textoMl(x.ml)}`;
-    else stockEl.textContent = 'Disponible · entrega en Córdoba a coordinar';
+    else stockEl.textContent = 'Disponible · envío o retiro a coordinar';
     stockEl.classList.toggle('es-poco', x.stock !== null && x.stock !== undefined && x.stock > 0 && x.stock <= 2);
     barra.querySelector('[data-barra-precio]').textContent = `${textoMl(x.ml)} · ${precio(x.precio)}`;
   }

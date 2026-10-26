@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <script>try{document.documentElement.dataset.fotos=localStorage.getItem("essenze-fotos")||"blanco"}catch(e){document.documentElement.dataset.fotos="blanco"}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Favoritos · Essenze Parfum &amp; Decants</title>
+  <meta name="description" content="Tus perfumes guardados, lado a lado para compararlos antes de elegir.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0b0a09">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:image" content="/img/compartir.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/img/favicon-180.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Essenze">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Tenor+Sans&display=swap">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <script type="module" src="/js/favoritos-pagina.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="cabecera" data-cabecera></header>
+
+  <main id="contenido" class="favoritos">
+    <div class="contenedor">
+      <div class="catalogo__cabecera">
+        <h1 class="titulo-pagina">Favoritos</h1>
+        <p class="catalogo__cuenta" data-cuenta aria-live="polite"></p>
+      </div>
+      <p class="favoritos__intro" data-intro hidden>Comparalos lado a lado y pasá a la bolsa el que más te guste. Quedan guardados en este navegador.</p>
+
+      <div class="comparador" data-comparador aria-busy="true"></div>
+
+      <div class="favoritos__pie" data-pie-favoritos hidden>
+        <a class="enlace-whatsapp" data-consultar target="_blank" rel="noopener"></a>
+      </div>
+
+      <div class="vacio" data-vacio hidden>
+        <img class="personaje-foto vacio__personaje" src="/img/cocodrilo-frasco.webp" alt="" width="640" height="640" loading="lazy" decoding="async" draggable="false">
+        <p class="vacio__titulo">Todavía no guardaste perfumes</p>
+        <p>Tocá el corazón en los perfumes que te gusten y acá los vas a poder comparar antes de elegir.</p>
+        <a class="boton boton--contorno" href="/catalogo">Ver catálogo</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie" data-pie></footer>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { TIPOS, CONFIG } from './config.js';
-import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, observarRevelado } from './interfaz.js';
+import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, observarRevelado, garantias } from './interfaz.js';
 import { enOferta, hayStock, normalizar } from './datos.js';
 import { icono } from './iconos.js';
 import { videoPersonaje, reproducir, puedeAnimar } from './personaje.js';
@@ -302,6 +302,7 @@ const { perfumes, ofertas } = await iniciarPagina('inicio');
 const porId = new Map(perfumes.map((p) => [p.id, p]));
 
 montarCartelera(document.querySelector('[data-cartelera]'), ofertas, porId);
+document.querySelector('[data-garantias]').innerHTML = garantias();
 montarTipos(document.querySelector('[data-tipos]'), perfumes);
 montarMarcas(document.querySelector('[data-marcas]'), perfumes);
 montarAcordes(document.querySelector('[data-acordes]'), perfumes);

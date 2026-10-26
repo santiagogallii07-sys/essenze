@@ -6,6 +6,7 @@ import { frascoSVG } from './frasco.js';
 import { arrastrarParaCerrar } from './arrastre.js';
 import { videoPersonaje, fotoPersonaje, reproducir, reproducirAlVer } from './personaje.js';
 import * as carrito from './carrito.js';
+import { obtenerFavoritos, esFavorito, alternarFavorito, depurarFavoritos } from './favoritos.js';
 import {
   obtenerCatalogo, precio, precioArs, precioDesde, hayStock, enOferta, descuentoMaximo,
   presentacionesOrdenadas, enlacePerfume, disponible, maximoDe, textoMl, normalizar, textoBuscable,
@@ -43,6 +44,8 @@ const NAV = [
 
 function cabecera(pagina) {
   const enlaces = NAV.map((n) => `<li><a href="${n.href}" ${n.id === pagina ? 'aria-current="page"' : ''}>${n.texto}</a></li>`).join('');
+  // En el celular no entra un tercer ícono en la cabecera: los favoritos van en el menú.
+  const favoritosMenu = `<li><a class="menu-movil__favoritos" href="/favoritos" ${pagina === 'favoritos' ? 'aria-current="page"' : ''}>${icono('corazon')}Favoritos <span data-cantidad-favoritos></span></a></li>`;
   return `
   <div class="cabecera__barra contenedor">
     <button class="boton-icono cabecera__menu" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-movil">${icono('menu')}</button>
@@ -53,12 +56,15 @@ function cabecera(pagina) {
     <nav class="cabecera__nav" aria-label="Principal"><ul>${enlaces}</ul></nav>
     <div class="cabecera__acciones">
       <button class="boton-icono" type="button" data-abrir-busqueda aria-label="Buscar perfumes">${icono('buscar')}</button>
+      <a class="boton-icono boton-favoritos" href="/favoritos" data-boton-favoritos aria-label="Favoritos" ${pagina === 'favoritos' ? 'aria-current="page"' : ''}>
+        ${icono('corazon')}<span class="boton-bolsa__cantidad" data-cantidad-favoritos hidden>0</span>
+      </a>
       <button class="boton-icono boton-bolsa" type="button" data-abrir-bolsa aria-label="Abrir bolsa de compras">
         ${icono('bolsa')}<span class="boton-bolsa__cantidad" data-cantidad-bolsa hidden>0</span>
       </button>
     </div>
   </div>
-  <nav class="menu-movil" id="menu-movil" aria-label="Menú" hidden><ul>${enlaces}</ul></nav>`;
+  <nav class="menu-movil" id="menu-movil" aria-label="Menú" hidden><ul>${enlaces}${favoritosMenu}</ul></nav>`;
 }
 
 function formatoTelefono(n) {
@@ -90,7 +96,58 @@ function pie() {
   </div>
   <div class="contenedor pie__legal">
     <p>© ${new Date().getFullYear()} Essenze Parfum &amp; Decants · Precios en dólares estadounidenses (USD)${CONFIG.mostrarArs && CONFIG.cotizacion ? '. Los precios en pesos son de referencia' : ''}.</p>
+    <p class="pie__enlaces"><a href="/terminos">Términos y condiciones</a><a href="/privacidad">Política de privacidad</a></p>
   </div>`;
+}
+
+/* ---------- Garantías (originales, envíos, pagos) ---------- */
+
+// Franja de confianza: bajo la cartelera en el inicio y, en versión corta, junto al botón de compra de la ficha.
+export function garantias({ compacta = false } = {}) {
+  const ciudad = escapar(String(CONFIG.ciudad || 'Córdoba').split(',')[0].trim());
+  const items = [
+    ['original', 'Perfumes 100% originales', 'Frascos y decants de perfumes originales.'],
+    ['envio', 'Envíos a todo el país', `O retiralo en ${ciudad}, a coordinar por WhatsApp.`],
+    ['tarjeta', 'Pagá como prefieras', 'Transferencia, efectivo o tarjeta con link de Mercado Pago.'],
+  ];
+  if (compacta) {
+    return `<ul class="garantias-cortas">${items.map(([ic, titulo]) => `<li>${icono(ic)}<span>${titulo}</span></li>`).join('')}</ul>`;
+  }
+  return `<ul class="garantias__lista contenedor">${items.map(([ic, titulo, detalle]) => `
+    <li class="garantia">${icono(ic, 'garantia__icono')}<div><p class="garantia__titulo">${titulo}</p><p class="garantia__detalle">${detalle}</p></div></li>`).join('')}
+  </ul>`;
+}
+
+/* ---------- Favoritos ---------- */
+
+export function botonFavorito(p, clase = '') {
+  return `<button type="button" class="boton-favorito ${clase}" data-favorito="${escapar(p.id)}" aria-pressed="${esFavorito(p.id)}" aria-label="Guardar ${escapar(p.nombre)} en favoritos">${icono('corazon')}</button>`;
+}
+
+function pintarFavoritos() {
+  const ids = obtenerFavoritos();
+  const n = ids.length;
+  document.querySelectorAll('[data-cantidad-favoritos]').forEach((el) => {
+    el.textContent = n || '';
+    el.hidden = n === 0;
+  });
+  document.querySelector('[data-boton-favoritos]')?.setAttribute('aria-label', n ? `Favoritos, ${n} ${n === 1 ? 'perfume' : 'perfumes'}` : 'Favoritos');
+  document.querySelectorAll('[data-favorito]').forEach((b) => b.setAttribute('aria-pressed', String(ids.includes(b.dataset.favorito))));
+}
+
+function alTocarFavorito(boton) {
+  const id = boton.dataset.favorito;
+  const nombre = perfumesPorId.get(id)?.nombre || 'El perfume';
+  if (alternarFavorito(id)) {
+    if (navigator.userActivation?.isActive) navigator.vibrate?.(8);
+    boton.classList.remove('es-latido');
+    void boton.offsetWidth;
+    boton.classList.add('es-latido');
+    const enFavoritos = document.body.dataset.pagina === 'favoritos';
+    aviso(`${nombre} en tus favoritos`, enFavoritos ? null : { texto: 'Ver favoritos', alHacer: () => { location.href = '/favoritos'; } });
+  } else {
+    aviso(`Quitaste ${nombre} de favoritos`, { texto: 'Deshacer', alHacer: () => alternarFavorito(id) });
+  }
 }
 
 /* ---------- Avisos ---------- */
@@ -246,11 +303,12 @@ function validar(form) {
     nombre: (v) => (v.trim().length >= 2 ? '' : 'Escribí tu nombre y apellido.'),
     email: (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? '' : 'Revisá el email: falta algo (ej. nombre@gmail.com).'),
     telefono: (v) => (v.replace(/\D/g, '').length >= 8 ? '' : 'Escribí tu número con código de área (ej. 351 555 1234).'),
+    acepto: (_, input) => (input.checked ? '' : 'Para enviar el pedido tenés que aceptar los términos y la política de privacidad.'),
   };
   let primero = null;
   for (const [campo, regla] of Object.entries(reglas)) {
     const input = form.elements[campo];
-    const error = regla(input.value);
+    const error = regla(input.value, input);
     const msj = form.querySelector(`[data-error="${campo}"]`);
     msj.textContent = error;
     input.setAttribute('aria-invalid', error ? 'true' : 'false');
@@ -323,6 +381,13 @@ function montarBolsa() {
           <div class="campo">
             <label for="f-comentario">Comentario <span class="campo__opcional">(opcional)</span></label>
             <textarea id="f-comentario" name="comentario" rows="3" enterkeyhint="send" placeholder="¿Retirás o preferís envío? ¿Es para regalo?"></textarea>
+          </div>
+          <div class="campo campo--acepto">
+            <label class="acepto">
+              <input type="checkbox" name="acepto" required aria-describedby="e-acepto">
+              <span>Leí y acepto los <a href="/terminos" target="_blank" rel="noopener">Términos y condiciones</a> y la <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</span>
+            </label>
+            <p class="campo__error" id="e-acepto" data-error="acepto"></p>
           </div>
           <input class="trampa" name="sitio" tabindex="-1" autocomplete="off" aria-hidden="true">
           <div class="bolsa__total"><span>Total</span><strong data-total></strong></div>
@@ -499,6 +564,7 @@ export function tarjeta(p, { revelar = false } = {}) {
         <p class="tarjeta__detalle">${[p.concentracion, pres.some((x) => x.ml) ? `${pres.map((x) => x.ml || '—').join(' / ')} ml` : ''].filter(Boolean).map(escapar).join(' · ')}</p>
       </div>
     </a>
+    ${botonFavorito(p, 'tarjeta__favorito')}
     <div class="tarjeta__pie">
       <p class="tarjeta__precio">${unico ? '' : '<span class="tarjeta__desde">desde</span>'}${precio(precioDesde(p))}${masBarato.precioAnterior && masBarato.precioAnterior > masBarato.precio ? ` <s>${precio(masBarato.precioAnterior)}</s>` : ''}${ars ? `<span class="tarjeta__ars">${ars}</span>` : ''}</p>
       ${conStock
@@ -731,11 +797,12 @@ for (const evento of ['pageswap', 'pagereveal']) {
   });
 }
 
-export async function iniciarPagina(pagina, { pildora = true } = {}) {
+export async function iniciarPagina(pagina, { pildora = true, conservarContenido = false } = {}) {
   const cab = document.querySelector('[data-cabecera]');
   const pieEl = document.querySelector('[data-pie]');
   cab.innerHTML = cabecera(pagina);
   pieEl.id = 'contacto';
+  document.body.dataset.pagina = pagina;
 
   const botonMenu = cab.querySelector('.cabecera__menu');
   const menu = cab.querySelector('.menu-movil');
@@ -762,12 +829,20 @@ export async function iniciarPagina(pagina, { pildora = true } = {}) {
   if (pildora) montarPildora();
   document.addEventListener('click', (e) => {
     if (e.target.closest('[data-abrir-bolsa]')) abrirBolsa();
+    const fav = e.target.closest('[data-favorito]');
+    if (fav) {
+      e.preventDefault();
+      alTocarFavorito(fav);
+    }
   });
+  document.addEventListener('favoritos:cambio', pintarFavoritos);
+  pintarFavoritos();
 
   let datos;
   try {
     datos = await obtenerCatalogo();
   } catch {
+    if (conservarContenido) throw new Error('catálogo no disponible');
     document.querySelector('main').innerHTML = `
       <div class="contenedor no-encontrado">
         <h1 class="titulo-seccion">No pudimos cargar el catálogo</h1>
@@ -780,6 +855,7 @@ export async function iniciarPagina(pagina, { pildora = true } = {}) {
   // Al llegar al final, el cocodrilo cruza el pie y dibuja el logo.
   reproducirAlVer(pieEl.querySelector('.pie__personaje'));
   perfumesPorId = new Map(datos.perfumes.map((p) => [p.id, p]));
+  depurarFavoritos((id) => perfumesPorId.has(id));
   document.addEventListener('carrito:cambio', () => {
     pintarContador();
     pintarBolsa();
