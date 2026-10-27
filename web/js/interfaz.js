@@ -713,9 +713,10 @@ function montarBusqueda() {
   let activa = -1;
 
   const opciones = () => [...listaEl.querySelectorAll('[role="option"]')];
+  // -1 = ninguna marcada: Enter busca el texto escrito. Solo las flechas marcan un perfume.
   function marcar(i) {
     const todas = opciones();
-    activa = todas.length ? (i + todas.length) % todas.length : -1;
+    activa = i < 0 || !todas.length ? -1 : i % todas.length;
     todas.forEach((o, n) => o.setAttribute('aria-selected', String(n === activa)));
     if (activa >= 0) {
       entrada.setAttribute('aria-activedescendant', todas[activa].id);
@@ -764,7 +765,8 @@ function montarBusqueda() {
     if (caja.hidden) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      marcar(activa + (e.key === 'ArrowDown' ? 1 : -1));
+      const ultima = opciones().length - 1;
+      marcar(e.key === 'ArrowDown' ? activa + 1 : activa <= 0 ? ultima : activa - 1);
     } else if (e.key === 'Enter' && activa >= 0) {
       e.preventDefault();
       opciones()[activa].click();
