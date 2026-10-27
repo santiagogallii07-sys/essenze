@@ -1,0 +1,15 @@
+# Configuración y claves locales
+wrangler.toml
+.dev.vars
+.wrangler/
+node_modules/
+
+# Datos del negocio: se cargan desde el panel, no van al repositorio
+*.xlsx
+*.xls
+PERFUMES/
+banners/
+
+# Herramientas de diseño
+.impeccable/
+.claude/
