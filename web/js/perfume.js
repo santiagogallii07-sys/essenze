@@ -1,6 +1,6 @@
 import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, agregarABolsa, escapar, enlaceWhatsapp, observarRevelado, botonFavorito, garantias } from './interfaz.js';
-import { precio, precioArs, presentacionesOrdenadas, hayStock, obtenerPerfume, disponible, maximoDe, textoMl, normalizar } from './datos.js';
+import { precio, precioArs, presentacionesOrdenadas, hayInmediata, inmediata, obtenerPerfume, MAXIMO_POR_LINEA, textoMl, normalizar } from './datos.js';
 import { montarVisor } from './visor.js';
 import { fotoPersonaje } from './personaje.js';
 import { icono, iconoWhatsapp } from './iconos.js';
@@ -62,14 +62,14 @@ function pintarFicha(p) {
   document.querySelector('meta[name="description"]').setAttribute('content', `${titulo}${p.concentracion ? ` ${p.concentracion}` : ''}. ${p.descripcion || p.perfil || ''}`.trim());
 
   const pres = presentacionesOrdenadas(p);
-  const inicial = pres.find(disponible) || pres[0];
-  const conStock = hayStock(p);
+  const inicial = pres[0];
   const tamanos = pres.map((x) => `
-    <label class="tamano ${disponible(x) ? '' : 'tamano--agotado'}">
-      <input type="radio" name="ml" value="${x.ml}" ${x.ml === inicial.ml ? 'checked' : ''} ${disponible(x) ? '' : 'disabled'}>
+    <label class="tamano">
+      <input type="radio" name="ml" value="${x.ml}" ${x.ml === inicial.ml ? 'checked' : ''}>
       <span class="tamano__ml">${textoMl(x.ml)}</span>
-      <span class="tamano__precio">${disponible(x) ? precio(x.precio) : 'Sin stock'}</span>
-      ${x.precioAnterior && x.precioAnterior > x.precio && disponible(x) ? `<s class="tamano__antes">${precio(x.precioAnterior)}</s>` : ''}
+      <span class="tamano__precio">${precio(x.precio)}</span>
+      ${x.precioAnterior && x.precioAnterior > x.precio ? `<s class="tamano__antes">${precio(x.precioAnterior)}</s>` : ''}
+      ${inmediata(x) ? '<span class="tamano__entrega">Entrega inmediata</span>' : ''}
     </label>`).join('');
 
   const consulta = enlaceWhatsapp(`Hola! Quería consultar por ${titulo}${p.concentracion ? ` (${p.concentracion})` : ''}.`);
@@ -103,12 +103,12 @@ function pintarFicha(p) {
           <output data-cantidad aria-live="polite">1</output>
           <button type="button" data-cant="1" aria-label="Agregar uno">${icono('mas')}</button>
         </div>
-        <button class="boton boton--lleno compra__agregar" type="submit" ${conStock ? '' : 'disabled'}>
-          ${conStock ? `Agregar a la bolsa · <span data-precio-total>${precio(inicial.precio)}</span>` : 'Sin stock'}
+        <button class="boton boton--lleno compra__agregar" type="submit">
+          Agregar a la bolsa · <span data-precio-total>${precio(inicial.precio)}</span>
         </button>
       </div>
       <p class="compra__stock" data-stock></p>
-      <a class="enlace-whatsapp" href="${consulta}" target="_blank" rel="noopener">${iconoWhatsapp()} ${conStock ? 'Consultar por este perfume' : 'Avisame cuando vuelva a entrar'}</a>
+      <a class="enlace-whatsapp" href="${consulta}" target="_blank" rel="noopener">${iconoWhatsapp()} Consultar por este perfume</a>
       ${garantias({ compacta: true })}
     </form>`;
 
@@ -140,7 +140,7 @@ function pintarFicha(p) {
 
     <div class="barra-compra" data-barra-compra aria-hidden="true">
       <div class="barra-compra__texto"><strong>${escapar(p.nombre)}</strong><span data-barra-precio></span></div>
-      <button class="boton boton--lleno" type="button" data-barra-agregar ${conStock ? '' : 'disabled'} tabindex="-1">${conStock ? 'Agregar' : 'Sin stock'}</button>
+      <button class="boton boton--lleno" type="button" data-barra-agregar tabindex="-1">Agregar</button>
     </div>`;
 
   // Si se llegó desde una tarjeta, la foto ya está puesta (transición); se reemplaza por el visor completo.
@@ -159,8 +159,8 @@ function pintarFicha(p) {
   const seleccion = () => pres.find((x) => x.ml === Number(form.elements.ml.value)) || inicial;
   function refrescar() {
     const x = seleccion();
-    const max = maximoDe(x);
-    cantidad = Math.max(1, Math.min(cantidad, Math.max(1, max)));
+    const max = MAXIMO_POR_LINEA;
+    cantidad = Math.max(1, Math.min(cantidad, max));
     salida.textContent = cantidad;
     const total = form.querySelector('[data-precio-total]');
     if (total) total.textContent = precio(x.precio * cantidad);
@@ -168,10 +168,10 @@ function pintarFicha(p) {
     form.querySelector('[data-cant="-1"]').disabled = cantidad <= 1;
     const ars = precioArs(x.precio * cantidad);
     arsEl.textContent = ars ? `${ars} (precio en dólares)` : '';
-    if (!disponible(x)) stockEl.textContent = '';
-    else if (x.stock !== null && x.stock !== undefined && x.stock <= 2) stockEl.textContent = `Quedan ${x.stock} en ${textoMl(x.ml)}`;
-    else stockEl.textContent = 'Disponible · envío o retiro a coordinar';
-    stockEl.classList.toggle('es-poco', x.stock !== null && x.stock !== undefined && x.stock > 0 && x.stock <= 2);
+    if (!inmediata(x)) stockEl.textContent = 'A pedido: lo conseguimos para vos y te confirmamos el plazo por WhatsApp antes de cobrar.';
+    else if (cantidad <= x.stock) stockEl.textContent = 'Entrega inmediata: lo tenemos listo para enviar o retirar.';
+    else stockEl.textContent = `Tenemos ${x.stock} para entrega inmediata; el resto es a pedido.`;
+    stockEl.classList.toggle('es-poco', inmediata(x));
     barra.querySelector('[data-barra-precio]').textContent = `${textoMl(x.ml)} · ${precio(x.precio)}`;
   }
   form.addEventListener('change', refrescar);
@@ -212,7 +212,7 @@ function pintarFicha(p) {
     .map((x) => ({
       x,
       puntos: (x.tipo === p.tipo ? 3 : 0) + (normalizar(x.acordes[0]?.nombre || '') === principal && principal ? 3 : 0)
-        + (x.familia && x.familia === p.familia ? 2 : 0) + (x.marca === p.marca ? 1 : 0) + (hayStock(x) ? 1 : 0) + (x.imagen ? 1 : 0),
+        + (x.familia && x.familia === p.familia ? 2 : 0) + (x.marca === p.marca ? 1 : 0) + (hayInmediata(x) ? 1 : 0) + (x.imagen ? 1 : 0),
     }))
     .sort((a, b) => b.puntos - a.puntos)
     .slice(0, 4)

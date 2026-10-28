@@ -1,7 +1,7 @@
 // Página de favoritos: los perfumes guardados, lado a lado para compararlos y pasarlos a la bolsa.
 import { GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, imagenPerfume, botonFavorito, agregarABolsa, escapar, enlaceWhatsapp } from './interfaz.js';
-import { precio, presentacionesOrdenadas, disponible, hayStock, textoMl, enlacePerfume } from './datos.js';
+import { precio, presentacionesOrdenadas, inmediata, textoMl, enlacePerfume } from './datos.js';
 import { obtenerFavoritos } from './favoritos.js';
 import { icono, iconoWhatsapp } from './iconos.js';
 
@@ -43,15 +43,13 @@ function usos(p) {
 
 function columna(p, i) {
   const pres = presentacionesOrdenadas(p);
-  const inicial = pres.find(disponible) || pres[0];
-  const conStock = hayStock(p);
+  const inicial = pres[0];
   const tamanos = pres.map((x) => `
-    <label class="comparar__tamano ${disponible(x) ? '' : 'es-agotado'}">
-      <input type="radio" name="ml-${i}" value="${x.ml}" ${x.ml === inicial.ml ? 'checked' : ''} ${disponible(x) ? '' : 'disabled'}>
-      <span>${textoMl(x.ml)}</span><span>${disponible(x) ? precio(x.precio) : 'Sin stock'}</span>
+    <label class="comparar__tamano">
+      <input type="radio" name="ml-${i}" value="${x.ml}" ${x.ml === inicial.ml ? 'checked' : ''}>
+      <span>${textoMl(x.ml)}${inmediata(x) ? '<small class="tamano-rapido__entrega">Entrega inmediata</small>' : ''}</span><span>${precio(x.precio)}</span>
     </label>`).join('');
   const detalle = [p.concentracion, GENEROS[p.genero]].filter(Boolean).map(escapar).join(' · ');
-  const consulta = enlaceWhatsapp(`Hola! ¿Va a volver a entrar ${p.marca} ${p.nombre}?`);
 
   return `
   <article class="comparar" data-id="${escapar(p.id)}" aria-label="${escapar(`${p.marca} ${p.nombre}`)}">
@@ -73,9 +71,7 @@ function columna(p, i) {
     ${celda('Notas', notas(p))}
     ${celda('Cuándo usarlo', usos(p))}
     <div class="comparar__accion">
-      ${conStock
-        ? `<button class="boton boton--lleno boton--chico boton--ancho" type="button" data-agregar-favorito aria-label="Agregar ${escapar(p.nombre)} a la bolsa">${icono('bolsa')} Agregar<span class="comparar__largo"> a la bolsa</span></button>`
-        : `<a class="boton boton--contorno boton--chico boton--ancho" href="${consulta}" target="_blank" rel="noopener">${iconoWhatsapp()} Avisame cuando vuelva</a>`}
+      <button class="boton boton--lleno boton--chico boton--ancho" type="button" data-agregar-favorito aria-label="Agregar ${escapar(p.nombre)} a la bolsa">${icono('bolsa')} Agregar<span class="comparar__largo"> a la bolsa</span></button>
     </div>
   </article>`;
 }

@@ -26,16 +26,17 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
   - En la computadora se llega con el corazón de la cabecera; en el celular, desde el menú.
 - Ficha con foto en relieve (se inclina con el dedo o el mouse), giro 360° si tiene fotos y visor 3D si tiene modelo `.glb`. Muestra notas, acordes, cuándo usarlo y perfumes parecidos.
 - Bolsa de compras: en el celular se abre como hoja inferior que se cierra deslizando.
+- **Stock: entrega inmediata o a pedido.** Todo se puede pedir. Lo que está marcado en stock en el panel sale como "Entrega inmediata" en la tarjeta, la ficha y la bolsa, y se puede filtrar en el catálogo. El resto es "a pedido": lo compran cuando entra el pedido. El mensaje de WhatsApp aclara qué es de entrega inmediata y qué es a pedido.
 - El pedido se manda por WhatsApp y además queda guardado en el panel. Para enviarlo hay que tildar que se aceptan los Términos y la Política de privacidad.
 - **Términos y condiciones** (`/terminos`) y **Política de privacidad** (`/privacidad`), enlazadas en el pie y en el formulario del pedido. Los textos se editan en `web/terminos.html` y `web/privacidad.html`.
 - Precio en USD, con referencia en pesos opcional.
 
 **Panel** (`/admin`, se instala en el celular como app)
 - **Inicio:** pedidos nuevos, ventas, saldo y margen del mes, más vendidos y stock bajo.
-- **Perfumes:** búsqueda, filtros y botones rápidos para ocultar o destacar. El editor maneja:
+- **Perfumes:** búsqueda, filtros (por ejemplo "En stock") y botones rápidos para marcar el stock (ícono de caja: cuántos tienen de cada tamaño), destacar u ocultar. El editor maneja:
   - Fotos con recorte automático del fondo blanco, desde archivo, desde un link o con Ctrl+V.
   - Fotos 360° y modelo 3D.
-  - Tamaños con precio, precio anterior, costo, stock y margen.
+  - Tamaños con precio, precio anterior, costo, stock (vacío = a pedido; al cobrar una venta se descuenta solo) y margen.
   - Aroma, con la opción de pegar el texto copiado de Fragrantica.
 - **Pedidos:** se pasan por nuevo → confirmado → cobrado → entregado, con WhatsApp directo al cliente. También se registran ventas hechas fuera de la web.
   - **Editar** cambia todo de una venta (perfumes, cantidades, precios, costos, cliente, fecha, estado, cobro y comisión); si ya estaba cobrada, la caja y el stock se rehacen con el dólar de esa venta.

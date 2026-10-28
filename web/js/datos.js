@@ -44,17 +44,21 @@ export function presentacionesOrdenadas(p) {
   return [...p.presentaciones].sort((a, b) => a.ml - b.ml);
 }
 
-// stock null = no se controla (siempre disponible).
-export const disponible = (x) => x.stock === null || x.stock === undefined || x.stock > 0;
-export const maximoDe = (x) => (x.stock === null || x.stock === undefined ? 20 : x.stock);
+// Todo se puede pedir. Los tamaños con stock (lo marcan en el panel) son de entrega inmediata;
+// el resto es "a pedido": lo compran cuando llega el pedido.
+export const MAXIMO_POR_LINEA = 20;
+export const inmediata = (x) => Number(x.stock) > 0;
 
-export function precioDesde(p) {
-  const conStock = p.presentaciones.filter(disponible);
-  return Math.min(...(conStock.length ? conStock : p.presentaciones).map((x) => x.precio));
+export function hayInmediata(p) {
+  return p.presentaciones.some(inmediata);
 }
 
-export function hayStock(p) {
-  return p.presentaciones.some(disponible);
+export function precioDesde(p) {
+  return Math.min(...p.presentaciones.map((x) => x.precio));
+}
+
+export function textoEntrega(x) {
+  return inmediata(x) ? 'Entrega inmediata' : 'A pedido';
 }
 
 export function enOferta(p) {

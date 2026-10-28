@@ -2146,3 +2146,33 @@ button, .boton, .chip, .pestana, .tamano, .tamano-rapido, .boton-circular, .acor
 @media (hover: hover) and (pointer: fine) {
   .pie__enlaces a:hover, .acepto a:hover, .legal__texto a:hover { color: var(--oro-claro); border-color: var(--oro); }
 }
+
+/* ==========================================================================
+   Entrega inmediata (lo que tienen en stock) y a pedido (todo lo demás)
+   ========================================================================== */
+
+.entrega-inmediata {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--oro-claro);
+}
+.entrega-inmediata::before { content: ''; flex: none; width: 5px; height: 5px; background: var(--oro); transform: rotate(45deg); }
+.tamano-rapido__entrega, .tamano__entrega {
+  display: block;
+  font-family: var(--cuerpo);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--oro-claro);
+}
+.tamano__entrega { margin-top: 4px; }
+.linea__entrega { font-size: 0.74rem; color: var(--texto-3); }
+.linea__entrega.es-inmediata { color: var(--oro-claro); }
+@media (max-width: 860px) {
+  .entrega-inmediata { font-size: 0.58rem; letter-spacing: 0.12em; }
+}

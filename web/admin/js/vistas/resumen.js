@@ -106,11 +106,11 @@ export async function montar({ vista, app }) {
             <span class="fila-admin__valor num">${m.unidades} u.</span>
           </a></li>`).join('')}</ul>` : '<p class="cifra__nota">Aparecen cuando marques pedidos como cobrados.</p>'}
         ${r.stockBajo.length ? `
-          <h3 class="tarjeta-admin__titulo" style="margin-top:18px">Stock bajo</h3>
+          <h3 class="tarjeta-admin__titulo" style="margin-top:18px">Stock por terminarse</h3>
           <ul class="lista-admin">${r.stockBajo.map((s) => `
             <li><a class="fila-admin" href="#/perfumes/${encodeURIComponent(s.id)}">
               <span class="fila-admin__texto"><span class="fila-admin__titulo">${escapar(s.nombre)} · ${s.ml} ml</span><span class="fila-admin__sub">${escapar(s.marca)}</span></span>
-              <span class="fila-admin__valor num" style="color:${s.stock ? 'var(--oro-claro)' : 'var(--rojo)'}">${s.stock ? `Queda ${s.stock}` : 'Agotado'}</span>
+              <span class="fila-admin__valor num" style="color:${s.stock ? 'var(--oro-claro)' : 'var(--rojo)'}">${s.stock ? `Queda ${s.stock}` : 'Se terminó: a pedido'}</span>
             </a></li>`).join('')}</ul>` : ''}
       </section>
     </div>`;

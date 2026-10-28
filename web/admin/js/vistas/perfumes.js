@@ -1,6 +1,6 @@
-// Lista de perfumes con búsqueda, filtros y cambios rápidos (visible / destacado).
+// Lista de perfumes con búsqueda, filtros y cambios rápidos (stock, visible, destacado).
 import { api } from '../api.js';
-import { icono, escapar, usd, precioDoble, miniatura, demorar, avisoError, aviso, TIPOS } from '../ui.js';
+import { icono, escapar, usd, precioDoble, miniatura, demorar, avisoError, aviso, hoja, TIPOS } from '../ui.js';
 import { dialogoDescuento } from './ofertas.js';
 
 const POR_PAGINA = 60;
@@ -13,13 +13,44 @@ const FILTROS = {
   sinFoto: { texto: 'Sin foto', prueba: (p) => !p.imagen },
   oferta: { texto: 'En oferta', prueba: (p) => p.presentaciones.some((x) => x.precioAnterior) },
   destacados: { texto: 'Destacados', prueba: (p) => p.destacado },
-  sinStock: { texto: 'Sin stock', prueba: (p) => p.presentaciones.every((x) => x.stock === 0) },
+  enStock: { texto: 'En stock', prueba: enStock },
   sinAroma: { texto: 'Sin aroma', prueba: (p) => !p.acordes.length },
   revisar: { texto: 'Para revisar', prueba: (p) => !!p.revisar },
 };
 
+// En stock = entrega inmediata en la tienda. Sin stock = a pedido (se puede pedir igual).
+function enStock(p) {
+  return p.presentaciones.some((x) => x.stock > 0);
+}
+
 function precioTexto(p) {
-  return p.presentaciones.map((x) => `${x.ml ? `${x.ml} ml ` : ''}<strong>${precioDoble(x.precio)}</strong>${x.precioAnterior ? ` <s>${usd(x.precioAnterior)}</s>` : ''}${x.stock !== null && x.stock !== undefined ? ` · ${x.stock === 0 ? 'agotado' : `stock ${x.stock}`}` : ''}`).join(' · ');
+  return p.presentaciones.map((x) => `${x.ml ? `${x.ml} ml ` : ''}<strong>${precioDoble(x.precio)}</strong>${x.precioAnterior ? ` <s>${usd(x.precioAnterior)}</s>` : ''}${x.stock > 0 ? ` · <span class="en-stock">en stock: ${x.stock}</span>` : ''}`).join(' · ');
+}
+
+// Hoja para marcar cuántos tienen de cada tamaño. Devuelve las presentaciones nuevas o nada si se cancela.
+function dialogoStock(p) {
+  const h = hoja({
+    titulo: 'Stock',
+    ancho: 420,
+    html: `
+      <p class="confirmar__texto">${escapar(p.marca)} ${escapar(p.nombre)}</p>
+      <p class="campo__ayuda">Lo que tengan en stock sale como <strong>entrega inmediata</strong> en la tienda. Vacío o 0 = <strong>a pedido</strong> (se puede pedir igual). Al cobrar una venta se descuenta solo.</p>
+      <div class="filas-stock">${p.presentaciones.map((x, i) => `
+        <label class="campo fila-stock"><span>${x.ml ? `${x.ml} ml` : 'Tamaño único'}</span>
+          <input class="entrada" type="number" inputmode="numeric" min="0" step="1" name="s${i}" value="${x.stock > 0 ? x.stock : ''}" placeholder="A pedido"></label>`).join('')}
+      </div>`,
+    pie: `<button class="boton boton--contorno" type="button" data-todo-pedido>Todo a pedido</button>
+          <button class="boton boton--lleno" type="button" data-guardar>Guardar</button>`,
+  });
+  const leer = (vaciar) => p.presentaciones.map((x, i) => {
+    const v = vaciar ? '' : h.cuerpo.querySelector(`[name="s${i}"]`).value.trim();
+    return { ...x, stock: v === '' || Number(v) <= 0 ? null : Math.round(Number(v)) };
+  });
+  h.dialogo.querySelector('[data-guardar]').addEventListener('click', () => h.cerrar(leer(false)));
+  h.dialogo.querySelector('[data-todo-pedido]').addEventListener('click', () => h.cerrar(leer(true)));
+  h.cuerpo.addEventListener('keydown', (e) => { if (e.key === 'Enter') h.cerrar(leer(false)); });
+  setTimeout(() => h.cuerpo.querySelector('input')?.focus(), 60);
+  return h.cerrada;
 }
 
 function fila(p) {
@@ -35,6 +66,7 @@ function fila(p) {
         </span>
       </a>
       <span class="item-perfume__acciones">
+        <button class="boton-icono ${enStock(p) ? 'es-activo' : ''}" type="button" data-accion="stock" aria-label="${enStock(p) ? 'En stock: cambiar' : 'A pedido: marcar en stock'}">${icono('paquete')}</button>
         <button class="boton-icono ${p.destacado ? 'es-activo' : ''}" type="button" data-accion="destacado" aria-pressed="${p.destacado}" aria-label="${p.destacado ? 'Quitar de destacados' : 'Destacar en el inicio'}">${icono('estrella')}</button>
         <button class="boton-icono ${p.visible ? '' : 'es-activo'}" type="button" data-accion="visible" aria-pressed="${!p.visible}" aria-label="${p.visible ? 'Ocultar de la tienda' : 'Mostrar en la tienda'}">${icono(p.visible ? 'ojo' : 'ojoNo')}</button>
       </span>
@@ -152,6 +184,20 @@ export async function montar({ vista, consulta, app }) {
     const li = b.closest('[data-id]');
     const p = perfumes.find((x) => x.id === li.dataset.id);
     const campo = b.dataset.accion;
+    if (campo === 'stock') {
+      const presentaciones = await dialogoStock(p);
+      if (!presentaciones) return;
+      try {
+        const r = await api(`/perfumes/${encodeURIComponent(p.id)}`, { metodo: 'PATCH', datos: { presentaciones } });
+        p.presentaciones = r.perfume.presentaciones;
+        li.outerHTML = fila(p);
+        aviso(enStock(p) ? 'En stock: sale como entrega inmediata' : 'Queda a pedido');
+        pintarFiltros();
+      } catch (err) {
+        avisoError(err);
+      }
+      return;
+    }
     const valor = !p[campo];
     b.disabled = true;
     try {

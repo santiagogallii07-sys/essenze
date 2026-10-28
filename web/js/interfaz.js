@@ -8,8 +8,8 @@ import { videoPersonaje, fotoPersonaje, reproducir, reproducirAlVer } from './pe
 import * as carrito from './carrito.js';
 import { obtenerFavoritos, esFavorito, alternarFavorito, depurarFavoritos } from './favoritos.js';
 import {
-  obtenerCatalogo, precio, precioArs, precioDesde, hayStock, enOferta, descuentoMaximo,
-  presentacionesOrdenadas, enlacePerfume, disponible, maximoDe, textoMl, normalizar, textoBuscable,
+  obtenerCatalogo, precio, precioArs, precioDesde, hayInmediata, inmediata, enOferta, descuentoMaximo,
+  presentacionesOrdenadas, enlacePerfume, MAXIMO_POR_LINEA, textoMl, normalizar, textoBuscable,
 } from './datos.js';
 
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -230,11 +230,12 @@ function pintarBolsa() {
         <p class="linea__marca">${escapar(l.p.marca)}</p>
         <a class="linea__nombre" href="${enlacePerfume(l.p)}">${escapar(l.p.nombre)}</a>
         <p class="linea__detalle">${textoMl(l.ml)} · ${precio(l.pres.precio)}</p>
+        <p class="linea__entrega ${inmediata(l.pres) ? 'es-inmediata' : ''}">${entregaDeLinea(l)}</p>
         <div class="linea__controles">
           <div class="cantidad" role="group" aria-label="Cantidad de ${escapar(l.p.nombre)}">
             <button type="button" data-accion="menos" aria-label="Quitar uno">${icono('menos')}</button>
             <output aria-live="polite">${l.cantidad}</output>
-            <button type="button" data-accion="mas" aria-label="Agregar uno" ${l.cantidad >= maximoDe(l.pres) ? 'disabled' : ''}>${icono('mas')}</button>
+            <button type="button" data-accion="mas" aria-label="Agregar uno" ${l.cantidad >= MAXIMO_POR_LINEA ? 'disabled' : ''}>${icono('mas')}</button>
           </div>
           <button type="button" class="linea__quitar" data-accion="quitar">Quitar</button>
         </div>
@@ -267,6 +268,14 @@ function pintarContador() {
   }
 }
 
+// Si piden más unidades de las que tienen, el resto queda a pedido.
+function entregaDeLinea(l) {
+  const stock = Number(l.pres.stock) || 0;
+  if (stock <= 0) return 'A pedido';
+  if (l.cantidad <= stock) return 'Entrega inmediata';
+  return `${stock} de entrega inmediata y ${l.cantidad - stock} a pedido`;
+}
+
 function numeroPedido() {
   const d = new Date(Date.now() - 3 * 3600_000).toISOString().slice(2, 10).replace(/-/g, '');
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -277,7 +286,7 @@ function numeroPedido() {
 export function mensajePedido(datos, lineas, numero) {
   const total = lineas.reduce((n, l) => n + l.subtotal, 0);
   const ars = precioArs(total);
-  const renglones = lineas.map((l) => `• ${l.cantidad} × ${l.p.marca} ${l.p.nombre}${l.p.concentracion ? ` (${l.p.concentracion})` : ''} – ${textoMl(l.ml)} – ${precio(l.subtotal)}${l.cantidad > 1 ? ` (${precio(l.pres.precio)} c/u)` : ''}`);
+  const renglones = lineas.map((l) => `• ${l.cantidad} × ${l.p.marca} ${l.p.nombre}${l.p.concentracion ? ` (${l.p.concentracion})` : ''} – ${textoMl(l.ml)} – ${precio(l.subtotal)}${l.cantidad > 1 ? ` (${precio(l.pres.precio)} c/u)` : ''} – ${entregaDeLinea(l).toLowerCase()}`);
   return [
     `Hola Essenze! Quiero hacer este pedido:`,
     ``,
@@ -431,8 +440,7 @@ function montarBolsa() {
     const id = li.dataset.id;
     const ml = Number(li.dataset.ml);
     const actual = carrito.cantidadDe(id, ml);
-    const pres = perfumesPorId.get(id)?.presentaciones.find((x) => x.ml === ml);
-    const max = pres ? maximoDe(pres) : actual + 1;
+    const max = MAXIMO_POR_LINEA;
     if (boton.dataset.accion === 'mas') carrito.cambiarCantidad(id, ml, Math.min(actual + 1, max));
     if (boton.dataset.accion === 'menos') carrito.cambiarCantidad(id, ml, actual - 1);
     if (boton.dataset.accion === 'quitar') {
@@ -519,11 +527,11 @@ function volarALaBolsa(origen) {
 
 export function agregarABolsa(p, ml, cantidad = 1, origen = null) {
   const pres = p.presentaciones.find((x) => x.ml === ml);
-  if (!pres || !disponible(pres)) return false;
-  const max = maximoDe(pres);
+  if (!pres) return false;
+  const max = MAXIMO_POR_LINEA;
   const yaHay = carrito.cantidadDe(p.id, ml);
   if (yaHay >= max) {
-    aviso(`No hay más stock de ${p.nombre} ${textoMl(ml)}`);
+    aviso(`Para más de ${max} unidades de ${p.nombre}, escribinos por WhatsApp`);
     return false;
   }
   carrito.agregar(p.id, ml, cantidad, max);
@@ -544,32 +552,29 @@ export function agregarABolsa(p, ml, cantidad = 1, origen = null) {
 
 export function tarjeta(p, { revelar = false } = {}) {
   const pres = presentacionesOrdenadas(p);
-  const conStock = hayStock(p);
   const oferta = enOferta(p);
   const desc = descuentoMaximo(p);
-  const disponibles = pres.filter(disponible);
-  const masBarato = (disponibles.length ? disponibles : pres).reduce((a, b) => (b.precio < a.precio ? b : a));
+  const masBarato = pres.reduce((a, b) => (b.precio < a.precio ? b : a));
   const unico = pres.length === 1;
-  const sello = !conStock ? '<span class="sello sello--apagado">Sin stock</span>' : oferta ? `<span class="sello">−${desc}%</span>` : '';
-  const tamanos = pres.map((x) => `<button type="button" class="tamano-rapido" data-ml="${x.ml}" ${disponible(x) ? '' : 'disabled'}><span>${textoMl(x.ml)}</span><span>${disponible(x) ? precio(x.precio) : 'Sin stock'}</span></button>`).join('');
+  const sello = oferta ? `<span class="sello">−${desc}%</span>` : '';
+  const tamanos = pres.map((x) => `<button type="button" class="tamano-rapido" data-ml="${x.ml}"><span>${textoMl(x.ml)}${inmediata(x) ? '<small class="tamano-rapido__entrega">Entrega inmediata</small>' : ''}</span><span>${precio(x.precio)}</span></button>`).join('');
   const ars = precioArs(precioDesde(p));
 
   return `
-  <article class="tarjeta ${conStock ? '' : 'tarjeta--sin-stock'} ${revelar ? 'revelar' : ''}" data-id="${escapar(p.id)}">
+  <article class="tarjeta ${revelar ? 'revelar' : ''}" data-id="${escapar(p.id)}">
     <a class="tarjeta__enlace" href="${enlacePerfume(p)}">
       <div class="tarjeta__imagen ${p.imagen && p.fondo !== 'recorte' ? 'tarjeta__imagen--foto' : ''}">${sello}${imagenPerfume(p)}<span class="tarjeta__destello" aria-hidden="true"></span></div>
       <div class="tarjeta__cuerpo">
         <p class="tarjeta__marca">${escapar(p.marca)}</p>
         <h3 class="tarjeta__nombre">${escapar(p.nombre)}</h3>
         <p class="tarjeta__detalle">${[p.concentracion, pres.some((x) => x.ml) ? `${pres.map((x) => x.ml || '—').join(' / ')} ml` : ''].filter(Boolean).map(escapar).join(' · ')}</p>
+        ${hayInmediata(p) ? '<p class="entrega-inmediata">Entrega inmediata</p>' : ''}
       </div>
     </a>
     ${botonFavorito(p, 'tarjeta__favorito')}
     <div class="tarjeta__pie">
       <p class="tarjeta__precio">${unico ? '' : '<span class="tarjeta__desde">desde</span>'}${precio(precioDesde(p))}${masBarato.precioAnterior && masBarato.precioAnterior > masBarato.precio ? ` <s>${precio(masBarato.precioAnterior)}</s>` : ''}${ars ? `<span class="tarjeta__ars">${ars}</span>` : ''}</p>
-      ${conStock
-        ? `<button type="button" class="boton-circular" data-agregar aria-label="Agregar ${escapar(p.nombre)} a la bolsa" ${unico ? '' : 'aria-expanded="false"'}>${icono('mas')}</button>`
-        : `<a class="boton-circular" href="${enlaceWhatsapp(`Hola! ¿Va a volver a entrar ${p.marca} ${p.nombre}?`)}" target="_blank" rel="noopener" aria-label="Consultar por ${escapar(p.nombre)} por WhatsApp">${iconoWhatsapp()}</a>`}
+      <button type="button" class="boton-circular" data-agregar aria-label="Agregar ${escapar(p.nombre)} a la bolsa" ${unico ? '' : 'aria-expanded="false"'}>${icono('mas')}</button>
     </div>
     ${unico ? '' : `<div class="tarjeta__tamanos" hidden><p>Elegí el tamaño</p>${tamanos}</div>`}
   </article>`;
@@ -682,7 +687,7 @@ function buscarPerfumes(perfumes, consulta) {
     if (palabras.every((w) => nombre.includes(w))) puntos = 2;
     if (soloNombre.startsWith(frase) || nombre.startsWith(frase)) puntos = 1;
     if (soloNombre === frase) puntos = 0;
-    encontrados.push({ p, puntos: puntos + (hayStock(p) ? 0 : 0.5) });
+    encontrados.push({ p, puntos });
   }
   return encontrados
     .sort((a, b) => a.puntos - b.puntos || Number(!!b.p.destacado) - Number(!!a.p.destacado) || `${a.p.marca} ${a.p.nombre}`.localeCompare(`${b.p.marca} ${b.p.nombre}`, 'es'))
@@ -747,7 +752,7 @@ function montarBusqueda() {
         <li><a class="sugerencia" id="sugerencia-${i}" role="option" aria-selected="false" href="${enlacePerfume(p)}">
           <span class="sugerencia__foto">${imagenPerfume(p)}</span>
           <span class="sugerencia__texto"><span class="sugerencia__marca">${escapar(p.marca)}</span><span class="sugerencia__nombre">${escapar(p.nombre)}</span>${p.concentracion ? `<span class="sugerencia__detalle">${escapar(p.concentracion)}</span>` : ''}</span>
-          <span class="sugerencia__precio">${hayStock(p) ? precio(precioDesde(p)) : 'Sin stock'}</span>
+          <span class="sugerencia__precio">${precio(precioDesde(p))}</span>
         </a></li>`).join('')}
         <li><a class="sugerencia-todos" href="${todos}">${encontrados.length > SUGERENCIAS ? `Ver los ${encontrados.length} resultados` : 'Ver en el catálogo'} ${icono('flecha')}</a></li>`
       : `<li class="sugerencia-vacia">${fotoPersonaje('bandeja', 'sugerencia-vacia__foto')}<span>No encontramos “${escapar(q)}”. Probá con la marca o una nota, como vainilla u oud.</span></li>`;

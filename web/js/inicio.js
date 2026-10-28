@@ -1,6 +1,6 @@
 import { TIPOS, CONFIG } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, observarRevelado, garantias } from './interfaz.js';
-import { enOferta, hayStock, normalizar } from './datos.js';
+import { enOferta, normalizar } from './datos.js';
 import { icono } from './iconos.js';
 import { videoPersonaje, reproducir, puedeAnimar } from './personaje.js';
 
@@ -285,9 +285,9 @@ function montarAcordes(raiz, perfumes) {
 
 // Si no hay destacados elegidos en el panel, se arma una vidriera variada con foto.
 function elegirDestacados(perfumes) {
-  const elegidos = perfumes.filter((p) => p.destacado && hayStock(p));
+  const elegidos = perfumes.filter((p) => p.destacado);
   if (elegidos.length >= 4) return elegidos.slice(0, 8);
-  const porTipo = Object.keys(TIPOS).map((t) => perfumes.filter((p) => p.tipo === t && p.imagen && hayStock(p) && p.acordes.length));
+  const porTipo = Object.keys(TIPOS).map((t) => perfumes.filter((p) => p.tipo === t && p.imagen && p.acordes.length));
   const mezcla = [...elegidos];
   for (let ronda = 0; mezcla.length < 8 && ronda < 4; ronda++) {
     for (const lista of porTipo) {
@@ -311,7 +311,7 @@ const gDest = document.querySelector('[data-destacados]');
 gDest.innerHTML = elegirDestacados(perfumes).map((p) => tarjeta(p, { revelar: true })).join('');
 activarTarjetas(gDest);
 
-const enPromo = perfumes.filter((p) => enOferta(p) && hayStock(p));
+const enPromo = perfumes.filter((p) => enOferta(p));
 const secOfertas = document.querySelector('[data-seccion-ofertas]');
 if (enPromo.length) {
   const gOf = document.querySelector('[data-ofertas]');

@@ -885,3 +885,7 @@ details.tarjeta-admin summary::-webkit-details-marker { display: none; }
 /* Vista del banner animado del cocodrilo: el logo y el cocodrilo sobre negro (se funden con "screen") */
 .oferta-admin__vista--personaje { grid-template-columns: 1fr 1fr; background: radial-gradient(60% 80% at 70% 60%, rgba(201, 163, 92, 0.18), transparent 70%), #080706; }
 .oferta-admin__vista--personaje img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: contain; mix-blend-mode: screen; }
+
+/* Stock rápido desde la lista de perfumes */
+.en-stock { color: var(--oro-claro); }
+.filas-stock { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-top: 16px; }

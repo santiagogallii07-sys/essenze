@@ -56,7 +56,7 @@ function filaTamano(x = {}) {
       <label class="campo"><span>Precio USD</span><input type="number" inputmode="decimal" min="0" step="0.01" name="precio" value="${v(x.precio)}" required></label>
       <label class="campo"><span>Precio antes</span><input type="number" inputmode="decimal" min="0" step="0.01" name="precioAnterior" value="${v(x.precioAnterior)}" placeholder="—"></label>
       <label class="campo"><span>Costo USD</span><input type="number" inputmode="decimal" min="0" step="0.01" name="costo" value="${v(x.costo)}" placeholder="—"></label>
-      <label class="campo"><span>Stock</span><input type="number" inputmode="numeric" min="0" step="1" name="stock" value="${v(x.stock)}" placeholder="Sin control"></label>
+      <label class="campo"><span>En stock</span><input type="number" inputmode="numeric" min="0" step="1" name="stock" value="${v(x.stock)}" placeholder="A pedido"></label>
       <button class="boton-icono fila-tamano__quitar" type="button" data-quitar-tamano aria-label="Quitar tamaño">${icono('basura')}</button>
       <p class="fila-tamano__margen" data-margen></p>
     </div>`;
@@ -152,7 +152,7 @@ export async function montar({ vista, params, app }) {
           <h2 class="tarjeta-admin__titulo">Tamaños, precios y stock</h2>
           <div class="filas-tamanos" data-tamanos>${p.presentaciones.map(filaTamano).join('')}</div>
           <div class="botonera" style="margin-top:10px"><button class="boton boton--suave boton--chico" type="button" data-agregar-tamano>${icono('mas')}Agregar tamaño</button>${esNuevo ? '' : `<button class="boton boton--contorno boton--chico" type="button" data-precio-rapido>${icono('porcentaje')}Descuento o aumento</button>`}</div>
-          <p class="campo__ayuda" style="margin-top:8px">"Precio antes" se muestra tachado (oferta). Stock vacío = no se controla. El costo nunca se muestra en la tienda.</p>
+          <p class="campo__ayuda" style="margin-top:8px">"Precio antes" se muestra tachado (oferta). "En stock": cuántos tienen para entrega inmediata (al cobrar una venta se descuenta solo). Vacío o 0 = a pedido: se puede pedir igual. El costo nunca se muestra en la tienda.</p>
         </section>
 
         <section class="tarjeta-admin">

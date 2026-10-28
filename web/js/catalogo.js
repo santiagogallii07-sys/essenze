@@ -1,6 +1,6 @@
 import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar } from './interfaz.js';
-import { precioDesde, hayStock, enOferta, normalizar, textoBuscable } from './datos.js';
+import { precioDesde, hayInmediata, enOferta, normalizar, textoBuscable } from './datos.js';
 import { icono } from './iconos.js';
 
 const INTENSIDAD_ACORDE = 50;
@@ -77,7 +77,7 @@ function escribirEstado(reemplazar = false) {
 function cumple(p, excepto) {
   if (excepto !== 'tipo' && estado.tipo && p.tipo !== estado.tipo) return false;
   if (estado.oferta && !enOferta(p)) return false;
-  if (estado.stock && !hayStock(p)) return false;
+  if (estado.stock && !hayInmediata(p)) return false;
   if (estado.q) {
     const t = textos.get(p.id);
     if (!normalizar(estado.q).split(/\s+/).filter(Boolean).every((w) => t.includes(w))) return false;
@@ -92,9 +92,9 @@ function cumple(p, excepto) {
 
 function ordenar(lista) {
   const l = [...lista];
-  const porStock = (a, b) => Number(hayStock(b)) - Number(hayStock(a));
-  if (estado.orden === 'precio-asc') l.sort((a, b) => porStock(a, b) || precioDesde(a) - precioDesde(b));
-  else if (estado.orden === 'precio-desc') l.sort((a, b) => porStock(a, b) || precioDesde(b) - precioDesde(a));
+  const porStock = (a, b) => Number(hayInmediata(b)) - Number(hayInmediata(a));
+  if (estado.orden === 'precio-asc') l.sort((a, b) => precioDesde(a) - precioDesde(b));
+  else if (estado.orden === 'precio-desc') l.sort((a, b) => precioDesde(b) - precioDesde(a));
   else if (estado.orden === 'nombre') l.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   else l.sort((a, b) => porStock(a, b) || Number(!!b.destacado) - Number(!!a.destacado) || Number(enOferta(b)) - Number(enOferta(a)));
   return l;
@@ -137,7 +137,7 @@ function pintarFiltros() {
   el.filtros.innerHTML = `
     <div class="interruptores">
       <label class="interruptor"><input type="checkbox" data-bandera="oferta" ${estado.oferta ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Solo ofertas</label>
-      <label class="interruptor"><input type="checkbox" data-bandera="stock" ${estado.stock ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Solo con stock</label>
+      <label class="interruptor"><input type="checkbox" data-bandera="stock" ${estado.stock ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Entrega inmediata</label>
     </div>
     ${grupos}`;
 }
@@ -146,7 +146,7 @@ function pintarChips() {
   const chips = [];
   if (estado.q) chips.push({ texto: `“${estado.q}”`, quitar: () => { estado.q = ''; el.buscar.value = ''; } });
   if (estado.oferta) chips.push({ texto: 'Ofertas', quitar: () => { estado.oferta = false; } });
-  if (estado.stock) chips.push({ texto: 'Con stock', quitar: () => { estado.stock = false; } });
+  if (estado.stock) chips.push({ texto: 'Entrega inmediata', quitar: () => { estado.stock = false; } });
   GRUPOS.forEach((g) => estado[g.clave].forEach((v) => chips.push({
     texto: g.etiquetas?.[v] || v,
     quitar: () => { estado[g.clave] = estado[g.clave].filter((x) => x !== v); },
