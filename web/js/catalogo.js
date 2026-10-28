@@ -1,6 +1,6 @@
 import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar } from './interfaz.js';
-import { precioDesde, hayInmediata, enOferta, normalizar, textoBuscable } from './datos.js';
+import { precioDesde, hayInmediata, verEntregaInmediata, enOferta, normalizar, textoBuscable } from './datos.js';
 import { icono } from './iconos.js';
 
 const INTENSIDAD_ACORDE = 50;
@@ -27,6 +27,7 @@ const POR_TANDA = 24;
 let mostrados = POR_TANDA;
 let filtroMarcas = '';
 let resultados = [];
+const conInmediata = verEntregaInmediata(perfumes);
 const textos = new Map(perfumes.map((p) => [p.id, textoBuscable(p)]));
 
 const el = {
@@ -53,7 +54,7 @@ function leerEstado() {
     tipo: TIPOS[u.get('tipo')] ? u.get('tipo') : '',
     q: u.get('q') || '',
     oferta: u.get('oferta') === '1',
-    stock: u.get('stock') === '1',
+    stock: conInmediata && u.get('stock') === '1',
     orden: ORDENES[u.get('orden')] ? u.get('orden') : 'relevancia',
   };
   GRUPOS.forEach((g) => { estado[g.clave] = multi(g.clave); });
@@ -137,7 +138,7 @@ function pintarFiltros() {
   el.filtros.innerHTML = `
     <div class="interruptores">
       <label class="interruptor"><input type="checkbox" data-bandera="oferta" ${estado.oferta ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Solo ofertas</label>
-      <label class="interruptor"><input type="checkbox" data-bandera="stock" ${estado.stock ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Entrega inmediata</label>
+      ${conInmediata ? `<label class="interruptor"><input type="checkbox" data-bandera="stock" ${estado.stock ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Entrega inmediata</label>` : ''}
     </div>
     ${grupos}`;
 }

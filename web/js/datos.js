@@ -53,6 +53,11 @@ export function hayInmediata(p) {
   return p.presentaciones.some(inmediata);
 }
 
+// El filtro "Entrega inmediata" aparece solo si está prendido en Ajustes y hay algo en stock.
+export function verEntregaInmediata(perfumes) {
+  return CONFIG.filtroInmediata !== false && perfumes.some(hayInmediata);
+}
+
 export function precioDesde(p) {
   return Math.min(...p.presentaciones.map((x) => x.precio));
 }
@@ -87,9 +92,10 @@ export function precioUsd(valor) {
   return `USD ${Number.isInteger(valor) ? formato.format(valor) : formato2.format(valor)}`;
 }
 
-// Precio secundario (chico, debajo): el valor en dólares cuando el principal está en pesos.
+// Precio secundario (chico, debajo): el valor en dólares, solo si el principal está en pesos
+// y en Ajustes eligieron mostrarlo.
 export function precioArs(valor) {
-  return enPesos() ? precioUsd(valor) : '';
+  return enPesos() && CONFIG.mostrarUsd ? precioUsd(valor) : '';
 }
 
 export function textoMl(ml) {

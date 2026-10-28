@@ -26,10 +26,10 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
   - En la computadora se llega con el corazón de la cabecera; en el celular, desde el menú.
 - Ficha con foto en relieve (se inclina con el dedo o el mouse), giro 360° si tiene fotos y visor 3D si tiene modelo `.glb`. Muestra notas, acordes, cuándo usarlo y perfumes parecidos.
 - Bolsa de compras: en el celular se abre como hoja inferior que se cierra deslizando.
-- **Stock: entrega inmediata o a pedido.** Todo se puede pedir. Lo que está marcado en stock en el panel sale como "Entrega inmediata" en la tarjeta, la ficha y la bolsa, y se puede filtrar en el catálogo. El resto es "a pedido": lo compran cuando entra el pedido. El mensaje de WhatsApp aclara qué es de entrega inmediata y qué es a pedido.
+- **Stock: entrega inmediata o a pedido.** Todo se puede pedir. Lo que está marcado en stock en el panel sale como "Entrega inmediata" en la tarjeta, la ficha y la bolsa, y se puede filtrar en el catálogo. El filtro no aparece si no hay nada en stock, y se puede apagar en Ajustes (por ejemplo, cuando hay pocos). El resto es "a pedido": lo compran cuando entra el pedido. El mensaje de WhatsApp aclara qué es de entrega inmediata y qué es a pedido.
 - El pedido se manda por WhatsApp y además queda guardado en el panel. Para enviarlo hay que tildar que se aceptan los Términos y la Política de privacidad.
 - **Términos y condiciones** (`/terminos`) y **Política de privacidad** (`/privacidad`), enlazadas en el pie y en el formulario del pedido. Los textos se editan en `web/terminos.html` y `web/privacidad.html`.
-- Precio en USD, con referencia en pesos opcional.
+- Precios en dólares, o en pesos si se prende en Ajustes. Con pesos, el valor en dólares queda oculto salvo que se prenda "Mostrar también el precio en dólares".
 
 **Panel** (`/admin`, se instala en el celular como app)
 - **Inicio:** pedidos nuevos, ventas, saldo y margen del mes, más vendidos y stock bajo.
@@ -44,7 +44,7 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
 - **Caja:** ingresos y gastos (en USD o pesos), saldo, margen, gráfico de 6 meses, gastos por categoría y planilla CSV.
 - **Ofertas:** diapositivas de la cartelera con fechas de inicio y fin, y descuentos por marca, por tipo o por búsqueda.
 - **Importar Excel:** lee el catálogo con sus fotos y muestra qué cambia antes de guardar.
-- **Ajustes:** WhatsApp, ciudad, Instagram, valor del dólar y copia de seguridad.
+- **Ajustes:** WhatsApp, ciudad, Instagram, valor del dólar, precios en pesos y/o dólares, filtro "Entrega inmediata" y copia de seguridad.
 
 ## Estructura
 

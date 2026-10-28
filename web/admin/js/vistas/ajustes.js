@@ -23,8 +23,12 @@ export async function montar({ vista, app }) {
             <option value="oscuro" ${a.estiloFotos === 'oscuro' ? 'selected' : ''}>Escenario oscuro con luz dorada</option>
           </select>
           <small class="campo__ayuda">Cambia cómo se ven todas las fotos al instante, sin tocar las fotos.</small></label>
-        <label class="interruptor ancho-total"><span class="interruptor__texto">Mostrar precios en pesos en la tienda<small>El precio en pesos va grande y el de dólares chico debajo (USD 100 = ${ars(100 * (a.cotizacion || 0))})</small></span>
+        <label class="interruptor ancho-total"><span class="interruptor__texto">Mostrar precios en pesos en la tienda<small>Los precios se calculan con el dólar de arriba (USD 100 = ${ars(100 * (a.cotizacion || 0))}). Si está apagado, la tienda muestra los dólares.</small></span>
           <input type="checkbox" name="mostrarArs" ${a.mostrarArs ? 'checked' : ''}><span class="interruptor__pista"></span></label>
+        <label class="interruptor ancho-total"><span class="interruptor__texto">Mostrar también el precio en dólares<small>Con los precios en pesos, agrega el valor en dólares chico debajo.</small></span>
+          <input type="checkbox" name="mostrarUsd" ${a.mostrarUsd ? 'checked' : ''}><span class="interruptor__pista"></span></label>
+        <label class="interruptor ancho-total"><span class="interruptor__texto">Filtro "Entrega inmediata" en el catálogo<small>Apagalo si tienen pocos en stock. Igual se oculta solo cuando no hay ninguno en stock.</small></span>
+          <input type="checkbox" name="filtroInmediata" ${a.filtroInmediata ? 'checked' : ''}><span class="interruptor__pista"></span></label>
       </div>
       <button class="boton boton--lleno" type="submit" style="margin-top:14px">Guardar ajustes</button>
     </form>
@@ -47,7 +51,7 @@ export async function montar({ vista, app }) {
     const f = e.currentTarget.elements;
     conCarga(e.currentTarget.querySelector('[type=submit]'), async () => {
       try {
-        const r = await api('/ajustes', { metodo: 'PUT', datos: { whatsapp: f.whatsapp.value, ciudad: f.ciudad.value, instagram: f.instagram.value, cotizacion: f.cotizacion.value, mostrarArs: f.mostrarArs.checked, comision: f.comision.value, estiloFotos: f.estiloFotos.value } });
+        const r = await api('/ajustes', { metodo: 'PUT', datos: { whatsapp: f.whatsapp.value, ciudad: f.ciudad.value, instagram: f.instagram.value, cotizacion: f.cotizacion.value, mostrarArs: f.mostrarArs.checked, mostrarUsd: f.mostrarUsd.checked, filtroInmediata: f.filtroInmediata.checked, comision: f.comision.value, estiloFotos: f.estiloFotos.value } });
         fijarDolar(r.cotizacion);
         aviso('Ajustes guardados');
       } catch (err) {

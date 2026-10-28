@@ -9,6 +9,8 @@ export const CONFIG = {
   moneda: 'USD',
   cotizacion: 0,
   mostrarArs: false,
+  mostrarUsd: false,
+  filtroInmediata: true,
 };
 
 export const TIPOS = {

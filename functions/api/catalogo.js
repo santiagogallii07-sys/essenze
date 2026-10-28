@@ -24,6 +24,8 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
     instagram: ajustes.instagram,
     cotizacion: ajustes.cotizacion,
     mostrarArs: ajustes.mostrarArs,
+    mostrarUsd: ajustes.mostrarUsd,
+    filtroInmediata: ajustes.filtroInmediata,
     estiloFotos: ajustes.estiloFotos,
     personaje: ajustes.personaje,
   };

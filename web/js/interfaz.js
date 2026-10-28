@@ -95,7 +95,7 @@ function pie() {
     </div>
   </div>
   <div class="contenedor pie__legal">
-    <p>© ${new Date().getFullYear()} Essenze Parfum &amp; Decants · Precios en dólares estadounidenses (USD)${CONFIG.mostrarArs && CONFIG.cotizacion ? '. Los precios en pesos son de referencia' : ''}.</p>
+    <p>© ${new Date().getFullYear()} Essenze Parfum &amp; Decants · ${notaPrecios()}.</p>
     <p class="pie__enlaces"><a href="/terminos">Términos y condiciones</a><a href="/privacidad">Política de privacidad</a></p>
   </div>`;
 }
@@ -269,6 +269,11 @@ function pintarContador() {
 }
 
 // Si piden más unidades de las que tienen, el resto queda a pedido.
+function notaPrecios() {
+  if (!(CONFIG.mostrarArs && CONFIG.cotizacion > 0)) return 'Precios en dólares estadounidenses (USD)';
+  return CONFIG.mostrarUsd ? 'Precios en dólares estadounidenses (USD). Los precios en pesos son de referencia' : 'Precios en pesos argentinos, calculados con el valor del dólar del día';
+}
+
 function entregaDeLinea(l) {
   const stock = Number(l.pres.stock) || 0;
   if (stock <= 0) return 'A pedido';
