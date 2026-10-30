@@ -56,7 +56,7 @@ export const onRequestGet = manejar(async ({ request, env }) => {
       WHERE p.estado IN ('cobrado', 'entregado') AND substr(p.cobrado_en, 1, 7) = ?
       GROUP BY coalesce(json_extract(j.value, '$.id'), lower(json_extract(j.value, '$.nombre')))
       ORDER BY unidades DESC LIMIT 5`).bind(mes),
-    DB.prepare(`SELECT p.id, p.creado, p.estado, p.nombre, p.total * ${dolarPedido} AS total, p.origen
+    DB.prepare(`SELECT p.id, p.numero, p.creado, p.estado, p.nombre, p.total * ${dolarPedido} AS total, p.origen
       FROM pedidos p ORDER BY p.creado DESC LIMIT 6`),
   ]);
 

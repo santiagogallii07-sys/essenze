@@ -1,6 +1,7 @@
 // Inicio del panel: lo importante del mes de un vistazo.
 import { api } from '../api.js';
-import { icono, escapar, usd, ars, nombreMes, fechaHora, ESTADOS, hoy } from '../ui.js';
+import { icono, escapar, usd, ars, nombreMes, fechaHora, ESTADOS, hoy, demorar, miniatura } from '../ui.js';
+import { perfumesLivianos, buscarEn } from '../datos.js';
 
 export function graficoMeses(meses, fmt = usd) {
   const maximo = Math.max(1, ...meses.flatMap((m) => [m.ingresos, m.egresos]));
@@ -38,7 +39,12 @@ export async function montar({ vista, app }) {
       <p class="saludo__fecha">${fechaLarga[0].toUpperCase()}${fechaLarga.slice(1)}</p>
     </div>
 
-    <div class="cifras">
+    <div class="buscador-general" data-buscador-general>
+      <label class="buscador-admin">${icono('buscar')}<input class="entrada" type="search" placeholder="Buscar perfume, pedido o cliente" autocomplete="off" enterkeyhint="search" aria-label="Buscar perfumes y pedidos" data-q-general></label>
+      <div class="buscador-general__resultados" data-resultados-general hidden></div>
+    </div>
+
+    <div class="cifras cifras--seis">
       <a class="cifra" href="#/pedidos">
         <span class="cifra__rotulo">Pedidos nuevos</span>
         <span class="cifra__valor num">${nuevos}</span>
@@ -49,15 +55,25 @@ export async function montar({ vista, app }) {
         <span class="cifra__valor">${fmt(c.ventas)}</span>
         <span class="cifra__nota">${c.ventasCobradas} ${c.ventasCobradas === 1 ? 'venta cobrada' : 'ventas cobradas'}</span>
       </a>
-      <a class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}" href="#/caja">
-        <span class="cifra__rotulo">Saldo del mes</span>
-        <span class="cifra__valor">${fmt(c.saldo)}</span>
-        <span class="cifra__nota">Ingresos − egresos</span>
+      <a class="cifra" href="#/caja">
+        <span class="cifra__rotulo">Costo de lo vendido</span>
+        <span class="cifra__valor">${fmt(c.costoVendido)}</span>
+        <span class="cifra__nota">${c.costoVendido ? `Lo que costaron los perfumes vendidos (${c.unidades} u.)` : 'Cargá costos para verlo'}</span>
       </a>
       <a class="cifra" href="#/caja">
         <span class="cifra__rotulo">Margen de ventas</span>
         <span class="cifra__valor">${fmt(c.margen)}</span>
-        <span class="cifra__nota">${c.costoVendido ? `Costo ${fmt(c.costoVendido)} · comisión ${fmt(c.comisiones)}` : 'Cargá costos para verlo'}</span>
+        <span class="cifra__nota">${c.costoVendido ? `Ventas − costo − comisión ${fmt(c.comisiones)}` : 'Cargá costos para verlo'}</span>
+      </a>
+      <a class="cifra" href="#/caja">
+        <span class="cifra__rotulo">Gastos del mes</span>
+        <span class="cifra__valor">${fmt(c.egresos)}</span>
+        <span class="cifra__nota">Todo lo que salió de la caja</span>
+      </a>
+      <a class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}" href="#/caja">
+        <span class="cifra__rotulo">Saldo del mes</span>
+        <span class="cifra__valor">${fmt(c.saldo)}</span>
+        <span class="cifra__nota">Ingresos − egresos</span>
       </a>
     </div>
 
@@ -80,7 +96,7 @@ export async function montar({ vista, app }) {
           <li><a class="fila-admin" href="#/pedidos">
             <span class="fila-admin__texto">
               <span class="fila-admin__titulo">${escapar(p.nombre || 'Sin nombre')}</span>
-              <span class="fila-admin__sub">${escapar(p.id)} · ${fechaHora(p.creado)}</span>
+              <span class="fila-admin__sub">${escapar(p.numero ? `#${p.numero}` : p.id)} · ${fechaHora(p.creado)}</span>
             </span>
             <span class="estado estado--${p.estado}">${ESTADOS[p.estado]}</span>
             <span class="fila-admin__valor">${fmt(p.total)}</span>
@@ -114,4 +130,29 @@ export async function montar({ vista, app }) {
             </a></li>`).join('')}</ul>` : ''}
       </section>
     </div>`;
+
+  // Buscador general: perfumes (de la lista guardada) y pedidos (por número, cliente o perfume).
+  const entrada = vista.querySelector('[data-q-general]');
+  const caja = vista.querySelector('[data-resultados-general]');
+  entrada.addEventListener('focus', () => perfumesLivianos().catch(() => {}), { once: true });
+  entrada.addEventListener('input', demorar(async () => {
+    const q = entrada.value.trim();
+    if (q.length < 2) {
+      caja.hidden = true;
+      return;
+    }
+    const [lista, pedidos] = await Promise.all([
+      perfumesLivianos().catch(() => []),
+      api(`/pedidos?q=${encodeURIComponent(q)}`).then((d) => d.pedidos.slice(0, 5)).catch(() => []),
+    ]);
+    if (entrada.value.trim() !== q) return;
+    const perfumes = buscarEn(lista, q, 6);
+    caja.innerHTML = `
+      ${perfumes.length ? `<p class="buscador-general__grupo">Perfumes</p>${perfumes.map((p) => `
+        <a class="buscador-general__fila" href="#/perfumes/${encodeURIComponent(p.id)}">${miniatura(p)}<span><strong>${escapar(p.nombre)}</strong><small>${escapar(p.marca)}</small></span></a>`).join('')}` : ''}
+      ${pedidos.length ? `<p class="buscador-general__grupo">Pedidos</p>${pedidos.map((p) => `
+        <a class="buscador-general__fila" href="#/pedidos?q=${encodeURIComponent(p.numero || p.id)}">${icono('recibo')}<span><strong>${escapar(p.numero ? `#${p.numero}` : p.id)} · ${escapar(p.nombre || 'Sin nombre')}</strong><small>${escapar(p.items.map((i) => i.nombre).join(', '))}</small></span><span class="estado estado--${p.estado}">${ESTADOS[p.estado]}</span></a>`).join('')}` : ''}
+      ${perfumes.length || pedidos.length ? '' : `<p class="buscador-general__vacio">No encontramos "${escapar(q)}".</p>`}`;
+    caja.hidden = false;
+  }, 200));
 }

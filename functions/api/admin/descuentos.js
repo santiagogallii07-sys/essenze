@@ -5,9 +5,11 @@
 //   quitar    → vuelve al precio anterior (saca el descuento).
 //   aumentar  → sube (o baja con valor negativo) el precio en % o en USD fijos; si hay descuento, se ajustan los dos.
 //   margen    → precio = costo + % de ganancia (solo los tamaños que tienen costo cargado).
+//   exclusivo → oferta solo para clientes con cuenta: precioCuenta = precio con el descuento (el precio de lista no cambia).
+//   quitarExclusivo → saca la oferta exclusiva.
 import { manejar, json, leerJSON, numero, texto, sentenciaVersion, ErrorCliente } from '../../../lib/util.js';
 
-const ACCIONES = ['aplicar', 'quitar', 'aumentar', 'margen'];
+const ACCIONES = ['aplicar', 'quitar', 'aumentar', 'margen', 'exclusivo', 'quitarExclusivo'];
 const redondo = (n) => Math.max(1, Math.round(n));
 
 export const onRequestPost = manejar(async ({ request, env }) => {
@@ -15,7 +17,7 @@ export const onRequestPost = manejar(async ({ request, env }) => {
   const accion = ACCIONES.includes(d.accion) ? d.accion : 'aplicar';
   const valor = numero(d.porcentaje ?? d.valor, 0);
   const enDolares = d.modo === 'monto';
-  if (accion === 'aplicar' && (valor <= 0 || valor >= 90)) throw new ErrorCliente(400, 'El descuento tiene que estar entre 1% y 89%.');
+  if ((accion === 'aplicar' || accion === 'exclusivo') && (valor <= 0 || valor >= 90)) throw new ErrorCliente(400, 'El descuento tiene que estar entre 1% y 89%.');
   if (accion === 'aumentar' && (!valor || (!enDolares && valor <= -90))) throw new ErrorCliente(400, 'Indicá cuánto aumentar.');
   if (accion === 'margen' && valor < 0) throw new ErrorCliente(400, 'La ganancia no puede ser negativa.');
 
@@ -36,13 +38,17 @@ export const onRequestPost = manejar(async ({ request, env }) => {
     const antes = fila.presentaciones;
     const pres = JSON.parse(antes || '[]').map((x) => {
       const base = x.precioAnterior && x.precioAnterior > x.precio ? x.precioAnterior : x.precio;
+      if (accion === 'exclusivo') return { ...x, precioCuenta: redondo(x.precio * (1 - valor / 100)) };
+      if (accion === 'quitarExclusivo') return { ...x, precioCuenta: null };
+      // Al subir o bajar precios, la oferta exclusiva se mueve igual.
+      const cuenta = accion === 'aumentar' && x.precioCuenta ? { precioCuenta: redondo(ajustar(x.precioCuenta)) } : {};
       if (accion === 'quitar') return { ...x, precio: base, precioAnterior: null };
       if (accion === 'aplicar') return { ...x, precio: redondo(base * (1 - valor / 100)), precioAnterior: base };
       if (accion === 'aumentar') {
         if (x.precioAnterior && x.precioAnterior > x.precio) {
-          return { ...x, precio: redondo(ajustar(x.precio)), precioAnterior: redondo(ajustar(x.precioAnterior)) };
+          return { ...x, ...cuenta, precio: redondo(ajustar(x.precio)), precioAnterior: redondo(ajustar(x.precioAnterior)) };
         }
-        return { ...x, precio: redondo(ajustar(x.precio)) };
+        return { ...x, ...cuenta, precio: redondo(ajustar(x.precio)) };
       }
       // margen: solo si hay costo cargado
       if (x.costo === null || x.costo === undefined || x.costo <= 0) return x;

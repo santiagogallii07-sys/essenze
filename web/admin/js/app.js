@@ -1,6 +1,7 @@
 // Panel de administración: ingreso, navegación y enrutado por #/seccion.
-import { api } from './api.js';
-import { icono, escapar, hoja, avisoError, fijarDolar } from './ui.js';
+import { api, cambioPropioReciente } from './api.js';
+import { icono, escapar, hoja, aviso, avisoError, fijarDolar } from './ui.js';
+import { olvidarPerfumes } from './datos.js';
 import { reproducir } from '/js/personaje.js';
 
 const SECCIONES = [
@@ -9,6 +10,7 @@ const SECCIONES = [
   { id: 'pedidos', texto: 'Pedidos', icono: 'recibo', modulo: './vistas/pedidos.js' },
   { id: 'caja', texto: 'Caja', icono: 'caja', modulo: './vistas/caja.js' },
   { id: 'ofertas', texto: 'Ofertas', icono: 'etiqueta', modulo: './vistas/ofertas.js' },
+  { id: 'clientes', texto: 'Clientes', icono: 'usuario', modulo: './vistas/clientes.js' },
   { id: 'importar', texto: 'Importar Excel', icono: 'tabla', modulo: './vistas/importar.js' },
   { id: 'ajustes', texto: 'Ajustes', icono: 'ajustes', modulo: './vistas/ajustes.js' },
 ];
@@ -83,6 +85,18 @@ function abrirMas() {
   h.dialogo.querySelector('[data-salir]').addEventListener('click', () => { h.cerrar(); salir(); });
 }
 
+// Qué vista corresponde a una ruta (#/seccion/params?consulta).
+function resolver(hash) {
+  const [camino, textoConsulta = ''] = hash.split('?');
+  const consulta = new URLSearchParams(textoConsulta);
+  const [seccion, ...params] = camino.split('/').map(decodeURIComponent);
+  const destino = SECCIONES.find((s) => s.id === seccion) || SECCIONES[0];
+  let modulo = destino.modulo;
+  if (destino.id === 'perfumes' && params.length) modulo = './vistas/editor.js';
+  if (destino.id === 'importar' && params[0] === 'fotos') modulo = './vistas/fotos-lote.js';
+  return { destino, modulo, params, consulta };
+}
+
 async function enrutar() {
   const hash = location.hash.replace(/^#\/?/, '') || 'resumen';
   if (hash === rutaActual) return;
@@ -91,13 +105,7 @@ async function enrutar() {
     return;
   }
   guardia = null;
-  const [camino, textoConsulta = ''] = hash.split('?');
-  const consulta = new URLSearchParams(textoConsulta);
-  const [seccion, ...params] = camino.split('/').map(decodeURIComponent);
-  let destino = SECCIONES.find((s) => s.id === seccion) || SECCIONES[0];
-  let modulo = destino.modulo;
-  if (destino.id === 'perfumes' && params.length) modulo = './vistas/editor.js';
-  if (destino.id === 'importar' && params[0] === 'fotos') modulo = './vistas/fotos-lote.js';
+  const { destino, modulo, params, consulta } = resolver(hash);
   rutaActual = hash;
 
   if (typeof limpiar === 'function') limpiar();
@@ -115,6 +123,72 @@ async function enrutar() {
   } catch (e) {
     console.error(e);
     el.vista.innerHTML = `<div class="vacio-admin"><p>No se pudo abrir esta sección.</p><p class="vacio-admin__detalle">${escapar(e.message)}</p><a class="boton boton--contorno" href="">Reintentar</a></div>`;
+  }
+}
+
+/* ---------- Actualización en vivo ---------- */
+
+// Como en el sistema de REFIRE: si el otro dueño carga algo o entra un pedido de la web, la pantalla se actualiza
+// sola, sin recargar. El panel pregunta cada 5 segundos (solo con la pestaña a la vista) si hubo cambios.
+let cambiosVistos = null;
+let repintarPendiente = false;
+
+function puedeRepintar() {
+  if (document.querySelector('dialog[open]')) return false; // una venta o un formulario a medio cargar
+  const foco = document.activeElement;
+  if (foco && el.vista.contains(foco) && foco.matches('input, textarea, select')) return false; // escribiendo
+  if (guardia) return false; // el editor con cambios sin guardar
+  return !/^(perfumes\/|importar)/.test(rutaActual); // el editor y la importación no se tocan
+}
+
+// Vuelve a armar la vista actual con los datos nuevos, sin el cartel de "cargando" y en el mismo lugar de la pantalla.
+async function repintarVista() {
+  const hash = rutaActual;
+  const { modulo, params, consulta } = resolver(hash);
+  // Los atajos ("?venta", "?gasto") abren una ventana: al repintar no se repiten.
+  consulta.delete('venta');
+  consulta.delete('gasto');
+  const y = window.scrollY;
+  try {
+    const m = await import(modulo);
+    if (rutaActual !== hash || !puedeRepintar()) return;
+    if (typeof limpiar === 'function') limpiar();
+    limpiar = await m.montar({ vista: el.vista, params, consulta, app });
+    window.scrollTo(0, y);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function revisarCambios() {
+  if (document.hidden || el.panel.hidden) return;
+  let r;
+  try {
+    r = await api('/vivo');
+  } catch {
+    return; // sin conexión: se vuelve a probar en la próxima vuelta
+  }
+  if (cambiosVistos !== null && r.nuevos > nuevosPedidos) {
+    const n = r.nuevos - nuevosPedidos;
+    aviso(n === 1 ? 'Entró un pedido nuevo' : `Entraron ${n} pedidos nuevos`);
+  }
+  if (r.nuevos !== nuevosPedidos) {
+    nuevosPedidos = r.nuevos;
+    pintarNav(SECCIONES.find((s) => rutaActual.startsWith(s.id))?.id || 'resumen');
+  }
+  if (cambiosVistos === null) {
+    cambiosVistos = r.cambios;
+    return;
+  }
+  if (r.cambios !== cambiosVistos) {
+    cambiosVistos = r.cambios;
+    olvidarPerfumes();
+    // Lo que cambió uno mismo ya se ve: solo se repinta por cambios de otros.
+    if (!cambioPropioReciente()) repintarPendiente = true;
+  }
+  if (repintarPendiente && puedeRepintar()) {
+    repintarPendiente = false;
+    repintarVista();
   }
 }
 
@@ -182,8 +256,8 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-volver]')) app.ir(el.volver.dataset.destino);
 });
 window.addEventListener('hashchange', enrutar);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !el.panel.hidden) contarPedidos(); });
-setInterval(() => { if (!document.hidden && !el.panel.hidden) contarPedidos(); }, 120_000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !el.panel.hidden) revisarCambios(); });
+setInterval(revisarCambios, 5000);
 
 // Íconos de los enlaces fijos del lateral.
 document.querySelectorAll('[data-icono]').forEach((a) => a.insertAdjacentHTML('afterbegin', icono(a.dataset.icono)));

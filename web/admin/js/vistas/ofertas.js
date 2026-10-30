@@ -3,7 +3,7 @@ import { api, subirImagen } from '../api.js';
 import { procesarFoto } from '../fotos.js';
 import { icono, escapar, hoja, confirmar, aviso, avisoError, conCarga, fecha, miniatura, TIPOS } from '../ui.js';
 import { frascoSVG } from '/js/frasco.js';
-import { dialogoBanner } from '../banner.js';
+import { dialogoBanner, dialogoCocodriloIA } from '../banner.js';
 
 let cachePerfumes = null;
 async function perfumes() {
@@ -18,6 +18,8 @@ const ACCIONES = {
   quitar: { texto: 'Quitar descuento', boton: 'Quitar descuento', ayuda: 'Vuelve al precio anterior.' },
   aumentar: { texto: 'Aumentar / bajar', boton: 'Aplicar cambio', ayuda: 'Suma un % o un monto en dólares al precio. Con número negativo, baja.' },
   margen: { texto: 'Ganancia sobre costo', boton: 'Calcular precios', ayuda: 'Precio = costo + % de ganancia. Solo cambia los tamaños que tienen costo cargado.' },
+  exclusivo: { texto: 'Oferta exclusiva para clientes con cuenta', boton: 'Crear oferta exclusiva', ayuda: 'Solo los clientes con cuenta ven y pagan este precio. Los demás ven "Con tu cuenta: $…" y les dan ganas de crearse una.' },
+  quitarExclusivo: { texto: 'Quitar oferta exclusiva', boton: 'Quitar oferta exclusiva', ayuda: 'Los clientes con cuenta vuelven a pagar el precio de todos.' },
 };
 
 /**
@@ -86,9 +88,9 @@ export async function dialogoDescuento({ perfumes: lista, seleccion, perfume, ac
     $('[data-campo-uno]').hidden = a !== 'uno';
     $('[data-campo-marca]').hidden = a !== 'marca';
     $('[data-campo-tipo]').hidden = a !== 'tipo';
-    $('[data-campo-valor]').hidden = acc === 'quitar';
+    $('[data-campo-valor]').hidden = acc === 'quitar' || acc === 'quitarExclusivo';
     $('[data-campo-modo]').hidden = acc !== 'aumentar';
-    $('[data-rotulo-valor]').textContent = acc === 'aplicar' ? 'Descuento (%)' : acc === 'margen' ? 'Ganancia (%)' : 'Cuánto';
+    $('[data-rotulo-valor]').textContent = acc === 'aplicar' || acc === 'exclusivo' ? 'Descuento (%)' : acc === 'margen' ? 'Ganancia (%)' : 'Cuánto';
     const n = afectados().length;
     $('[data-resumen]').textContent = n ? `Se aplica a ${n} ${n === 1 ? 'perfume' : 'perfumes'}.` : 'Elegí un perfume.';
     $('[data-aplicar]').textContent = ACCIONES[acc].boton;
@@ -258,6 +260,7 @@ function tarjetaPersonaje(p) {
       </div>
       <div class="oferta-admin__acciones">
         <label class="interruptor"><input type="checkbox" data-personaje-activo ${p.activo ? 'checked' : ''}><span class="interruptor__pista"></span><span>Activo</span></label>
+        <button class="boton boton--suave boton--chico" type="button" data-cocodrilo-ia>${icono('imagen')} Hacerlo con IA</button>
         <button class="boton-icono" type="button" data-personaje-editar aria-label="Editar textos">${icono('editar')}</button>
       </div>
     </article>`;
@@ -335,19 +338,20 @@ export async function montar({ vista, app }) {
   }
 
   function pintar() {
+    const exclusivas = lista.filter((p) => p.presentaciones.some((x) => x.precioCuenta && x.precioCuenta < x.precio)).length;
     vista.innerHTML = `
       <section class="tarjeta-admin">
-        <h2 class="tarjeta-admin__titulo">Cartelera del inicio <a href="/" target="_blank" rel="noopener">Ver en la tienda</a></h2>
-        <p class="campo__ayuda" style="margin-bottom:12px">Pasan solas en orden al azar (cambia en cada visita), 3 segundos cada una; el banner del cocodrilo dura lo que su animación y nunca sale primero. Hay dos tipos: <strong>Banner</strong> (una imagen completa hecha con IA, con el botón "Cargar banner") y <strong>Diapositiva</strong> (texto + foto de un perfume, armada por la página).</p>
-        <div data-lista>${tarjetaPersonaje(personaje)}${ofertas.map((o) => tarjetaOferta(o, porId)).join('')}</div>
-      </section>
-      <section class="tarjeta-admin">
-        <h2 class="tarjeta-admin__titulo">Descuentos en precios</h2>
-        <p class="campo__ayuda">Hoy hay <strong>${enOferta()}</strong> perfumes con precio tachado. Aplicá un descuento a un perfume, una marca o un tipo; subí precios en % o en dólares, o calculalos con tu % de ganancia sobre el costo.</p>
+        <h2 class="tarjeta-admin__titulo">Descuentos y ofertas exclusivas</h2>
+        <p class="campo__ayuda">Hoy hay <strong>${enOferta()}</strong> perfumes con precio tachado y <strong>${exclusivas}</strong> con oferta exclusiva para clientes con cuenta. Aplicá un descuento a un perfume, una marca o un tipo; creá ofertas solo para clientes con cuenta; subí precios en % o en dólares, o calculalos con tu % de ganancia sobre el costo.</p>
         <div class="botonera" style="margin-top:12px">
-          <button class="boton boton--contorno" type="button" data-descuento>${icono('porcentaje')} Precios y descuentos</button>
+          <button class="boton boton--lleno" type="button" data-descuento>${icono('porcentaje')} Precios y descuentos</button>
           <a class="boton boton--suave" href="#/perfumes?filtro=oferta">Ver perfumes en oferta</a>
         </div>
+      </section>
+      <section class="tarjeta-admin">
+        <h2 class="tarjeta-admin__titulo">Cartelera del inicio <a href="/" target="_blank" rel="noopener">Ver en la tienda</a></h2>
+        <p class="campo__ayuda" style="margin-bottom:12px">Se ve arriba a la derecha del inicio (en el celular, arriba de todo). Pasan solas en orden al azar (cambia en cada visita), 3 segundos cada una; el banner del cocodrilo dura lo que su animación y nunca sale primero. Hay dos tipos: <strong>Banner</strong> (una imagen completa hecha con IA, con el botón "Cargar banner") y <strong>Diapositiva</strong> (texto + foto de un perfume, armada por la página).</p>
+        <div data-lista>${tarjetaPersonaje(personaje)}${ofertas.map((o) => tarjetaOferta(o, porId)).join('')}</div>
       </section>`;
   }
 
@@ -359,6 +363,10 @@ export async function montar({ vista, app }) {
         lista.splice(0, lista.length, ...nuevos);
         pintar();
       }
+      return;
+    }
+    if (e.target.closest('[data-cocodrilo-ia]')) {
+      dialogoCocodriloIA();
       return;
     }
     if (e.target.closest('[data-personaje-editar]')) {

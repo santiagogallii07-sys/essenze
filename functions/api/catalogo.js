@@ -3,9 +3,12 @@
 import { manejar, jsonCrudo, leerAjustes, hoyArgentina } from '../../lib/util.js';
 import { listaJSON } from '../../lib/perfumes.js';
 import { asegurarEsquema } from '../../lib/esquema.js';
+import { actualizarDolarSiToca } from '../../lib/dolar.js';
 
 export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
-  const ajustes = await leerAjustes(env);
+  let ajustes = await leerAjustes(env);
+  // Los lunes se actualiza el dólar de la semana (una sola vez); eso sube la versión y renueva el catálogo.
+  if (await actualizarDolarSiToca(env, ajustes)) ajustes = await leerAjustes(env);
   const hoy = hoyArgentina();
   const clave = new Request(`https://cache.essenze/catalogo?v=${ajustes.version}&d=${hoy}`);
   const cache = caches.default;
@@ -28,9 +31,20 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
     filtroInmediata: ajustes.filtroInmediata,
     estiloFotos: ajustes.estiloFotos,
     personaje: ajustes.personaje,
+    popupCuentas: ajustes.popupCuentas,
+    // Las páginas abiertas comparan esta versión con /api/vivo para saber si tienen que actualizarse.
+    version: ajustes.version,
   };
   const perfumes = await listaJSON(env, { soloVisibles: true });
-  const cuerpo = `{"ajustes":${JSON.stringify(publicos)},"ofertas":${JSON.stringify(vigentes)},"perfumes":${perfumes}}`;
+  // Los más vendidos de los últimos 6 meses (para la fila del inicio y el orden "Más vendidos" del catálogo).
+  const { results: vendidos } = await env.DB.prepare(
+    `SELECT json_extract(j.value, '$.id') AS id, SUM(json_extract(j.value, '$.cantidad')) AS unidades
+     FROM pedidos p, json_each(p.items) j
+     WHERE p.estado IN ('cobrado', 'entregado') AND p.creado >= date('now', '-180 days') AND json_extract(j.value, '$.id') IS NOT NULL
+     GROUP BY 1 ORDER BY unidades DESC LIMIT 60`,
+  ).all();
+  const masVendidos = vendidos.map((v) => v.id);
+  const cuerpo = `{"ajustes":${JSON.stringify(publicos)},"ofertas":${JSON.stringify(vigentes)},"masVendidos":${JSON.stringify(masVendidos)},"perfumes":${perfumes}}`;
 
   const respuesta = jsonCrudo(cuerpo, 200, { 'Cache-Control': 'public, max-age=30' });
   waitUntil(cache.put(clave, respuesta.clone()));

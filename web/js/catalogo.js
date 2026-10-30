@@ -17,17 +17,21 @@ const GRUPOS = [
 
 const ORDENES = {
   relevancia: 'Destacados',
+  vendidos: 'Más vendidos',
   'precio-asc': 'Menor precio',
   'precio-desc': 'Mayor precio',
   nombre: 'Nombre (A–Z)',
 };
 
-const { perfumes } = await iniciarPagina('catalogo');
+const datosCatalogo = await iniciarPagina('catalogo');
+const { perfumes } = datosCatalogo;
+// Puesto de cada perfume entre los más vendidos (0 = el más vendido).
+let ranking = new Map((datosCatalogo.masVendidos || []).map((id, i) => [id, i]));
 const POR_TANDA = 24;
 let mostrados = POR_TANDA;
 let filtroMarcas = '';
 let resultados = [];
-const conInmediata = verEntregaInmediata(perfumes);
+let conInmediata = verEntregaInmediata(perfumes);
 const textos = new Map(perfumes.map((p) => [p.id, textoBuscable(p)]));
 
 const el = {
@@ -97,6 +101,7 @@ function ordenar(lista) {
   if (estado.orden === 'precio-asc') l.sort((a, b) => precioDesde(a) - precioDesde(b));
   else if (estado.orden === 'precio-desc') l.sort((a, b) => precioDesde(b) - precioDesde(a));
   else if (estado.orden === 'nombre') l.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  else if (estado.orden === 'vendidos') l.sort((a, b) => (ranking.get(a.id) ?? 1e6) - (ranking.get(b.id) ?? 1e6) || Number(!!b.destacado) - Number(!!a.destacado));
   else l.sort((a, b) => porStock(a, b) || Number(!!b.destacado) - Number(!!a.destacado) || Number(enOferta(b)) - Number(enOferta(a)));
   return l;
 }
@@ -194,6 +199,17 @@ function pintarResultados() {
   el.titulo.textContent = estado.oferta && !estado.tipo ? 'Ofertas' : estado.tipo ? TIPOS[estado.tipo] : 'Catálogo';
   document.title = `${el.titulo.textContent} · Essenze Parfum & Decants`;
 }
+
+// Cambió el catálogo desde el panel (precios, stock, ofertas) o se abrió la cuenta: se vuelve a pintar
+// con los filtros que el cliente tenía elegidos, sin recargar la página.
+document.addEventListener('catalogo:cambio', (e) => {
+  textos.clear();
+  perfumes.forEach((p) => textos.set(p.id, textoBuscable(p)));
+  ranking = new Map((e.detail.masVendidos || []).map((id, i) => [id, i]));
+  conInmediata = verEntregaInmediata(perfumes);
+  if (!conInmediata) estado.stock = false;
+  actualizar({ historial: false });
+});
 
 function actualizar({ historial = true } = {}) {
   if (historial) escribirEstado();

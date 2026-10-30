@@ -1,8 +1,11 @@
-// GET /api/admin/perfumes → todos (incluidos los ocultos) · POST → crear uno
+// GET /api/admin/perfumes → todos (incluidos los ocultos); ?liviana=1 → solo nombre, tamaños y foto · POST → crear uno
 import { manejar, json, jsonCrudo, error, leerJSON, sentenciaVersion } from '../../../../lib/util.js';
 import { limpiarPerfume, sentenciaGuardar, listaJSON } from '../../../../lib/perfumes.js';
 
-export const onRequestGet = manejar(async ({ env }) => jsonCrudo(await listaJSON(env, { soloVisibles: false, completa: true })));
+export const onRequestGet = manejar(async ({ request, env }) => {
+  const liviana = new URL(request.url).searchParams.get('liviana') === '1';
+  return jsonCrudo(await listaJSON(env, { soloVisibles: false, completa: true, liviana }));
+});
 
 export const onRequestPost = manejar(async ({ request, env }) => {
   const p = limpiarPerfume(await leerJSON(request));

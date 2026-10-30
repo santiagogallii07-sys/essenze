@@ -1,6 +1,6 @@
 // Caja (cash flow): ingresos, egresos, saldo y margen del mes, con movimientos y gráfico.
 import { api } from '../api.js';
-import { icono, escapar, usd, ars, fecha, nombreMes, hoja, confirmar, aviso, avisoError, conCarga, hoy } from '../ui.js';
+import { icono, escapar, usd, ars, fecha, nombreMes, hoja, confirmar, aviso, avisoError, conCarga, hoy, demorar } from '../ui.js';
 import { graficoMeses } from './resumen.js';
 import { importarVentas } from '../ventas-excel.js';
 
@@ -107,6 +107,8 @@ export async function montar({ vista, consulta, app }) {
   let mes = sessionStorage.getItem('admin-caja-mes') || hoy().slice(0, 7);
   let datos;
   let resumen;
+  let q = '';
+  let resultadosBusqueda = [];
   const { cotizacion } = await api('/ajustes');
 
   async function cargar() {
@@ -118,7 +120,6 @@ export async function montar({ vista, consulta, app }) {
   function pintar() {
     const c = resumen.caja;
     const fmt = (n) => (resumen.moneda === 'ARS' ? ars(n) : usd(n));
-    const enPesos = (m) => (m.moneda === 'ARS' ? m.monto_original : m.monto * (m.cotizacion || resumen.dolar));
     const maxCat = Math.max(1, ...resumen.egresosPorCategoria.map((x) => x.total));
     const esActual = mes === hoy().slice(0, 7);
     vista.innerHTML = `
@@ -150,13 +151,34 @@ export async function montar({ vista, consulta, app }) {
 
       <section class="tarjeta-admin" style="margin-top:12px">
         <h3 class="tarjeta-admin__titulo">Movimientos <button type="button" data-csv>${datos.movimientos.length ? 'Descargar planilla' : ''}</button></h3>
-        ${datos.movimientos.length ? `<ul class="lista-admin">${datos.movimientos.map((m) => `
-          <li><button class="movimiento movimiento--${m.tipo}" type="button" data-mov="${m.id}">
-            <span class="movimiento__titulo">${escapar(m.descripcion || m.categoria)}</span>
-            <span class="movimiento__monto">${m.tipo === 'egreso' ? '−' : '+'}${resumen.moneda === 'ARS' ? ars(enPesos(m)) : usd(m.monto)}<small>${usd(m.monto)}</small></span>
-            <span class="movimiento__sub">${fecha(m.fecha)} · ${escapar(m.categoria)}${m.pedido ? ' · desde pedido' : ''}</span>
-          </button></li>`).join('')}</ul>` : `<div class="vacio-admin">${icono('caja')}<p>Sin movimientos en ${nombreMes(mes).toLowerCase()}.</p><p class="vacio-admin__detalle">Las ventas cobradas se suman solas. Cargá acá compras de mercadería, envíos, publicidad y otros gastos.</p></div>`}
+        <label class="buscador-admin" style="margin-bottom:10px">${icono('buscar')}<input class="entrada" type="search" placeholder="Buscar en todos los meses: perfume, cliente, gasto…" value="${escapar(q)}" autocomplete="off" enterkeyhint="search" aria-label="Buscar movimientos" data-q-caja></label>
+        <div data-lista-mov>${q ? '' : listaMovimientos(datos.movimientos)}</div>
       </section>`;
+    if (q) buscarMovimientos();
+  }
+
+  function listaMovimientos(movimientos) {
+    const enPesos = (m) => (m.moneda === 'ARS' ? m.monto_original : m.monto * (m.cotizacion || resumen.dolar));
+    if (!movimientos.length) {
+      return q
+        ? `<p class="cifra__nota">No hay movimientos con "${escapar(q)}".</p>`
+        : `<div class="vacio-admin">${icono('caja')}<p>Sin movimientos en ${nombreMes(mes).toLowerCase()}.</p><p class="vacio-admin__detalle">Las ventas cobradas se suman solas. Cargá acá compras de mercadería, envíos, publicidad y otros gastos.</p></div>`;
+    }
+    return `<ul class="lista-admin">${movimientos.map((m) => `
+      <li><button class="movimiento movimiento--${m.tipo}" type="button" data-mov="${m.id}">
+        <span class="movimiento__titulo">${escapar(m.descripcion || m.categoria)}</span>
+        <span class="movimiento__monto">${m.tipo === 'egreso' ? '−' : '+'}${resumen.moneda === 'ARS' ? ars(enPesos(m)) : usd(m.monto)}<small>${usd(m.monto)}</small></span>
+        <span class="movimiento__sub">${fecha(m.fecha)} · ${escapar(m.categoria)}${m.pedido ? ' · desde pedido' : ''}</span>
+      </button></li>`).join('')}</ul>`;
+  }
+
+  // La búsqueda recorre todos los meses (incluye los perfumes de las ventas).
+  async function buscarMovimientos() {
+    const buscado = q;
+    const r = await api(`/movimientos?q=${encodeURIComponent(buscado)}`).catch(() => ({ movimientos: [] }));
+    if (buscado !== q) return;
+    resultadosBusqueda = r.movimientos;
+    vista.querySelector('[data-lista-mov]').innerHTML = `<p class="contador-resultados">${r.movimientos.length} ${r.movimientos.length === 1 ? 'movimiento' : 'movimientos'} en todos los meses</p>${listaMovimientos(r.movimientos)}`;
   }
 
   vista.addEventListener('click', async (e) => {
@@ -172,7 +194,7 @@ export async function montar({ vista, consulta, app }) {
     }
     const mov = e.target.closest('[data-mov]');
     if (mov) {
-      const m = datos.movimientos.find((x) => x.id === mov.dataset.mov);
+      const m = [...datos.movimientos, ...resultadosBusqueda].find((x) => x.id === mov.dataset.mov);
       if (m.pedido) {
         aviso('Este ingreso viene de un pedido: se cambia desde Pedidos.', 'error');
         return;
@@ -180,6 +202,12 @@ export async function montar({ vista, consulta, app }) {
       if (await dialogoMovimiento({ movimiento: m, categorias: datos.categorias, cotizacion })) cargar();
     }
   });
+  vista.addEventListener('input', demorar((e) => {
+    if (!e.target.matches('[data-q-caja]')) return;
+    q = e.target.value.trim();
+    if (q) buscarMovimientos();
+    else vista.querySelector('[data-lista-mov]').innerHTML = listaMovimientos(datos.movimientos);
+  }, 250));
   const recargar = () => cargar();
   document.addEventListener('caja:recargar', recargar);
   importar.addEventListener('click', async () => {

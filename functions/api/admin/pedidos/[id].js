@@ -3,8 +3,8 @@
 // PUT con items → edición completa: perfumes, precios, costos, cliente, fecha, estado, cobro y comisión.
 // Al pasar a cobrado/entregado se registra el ingreso y se descuenta stock; al anular, se revierte.
 // Si se edita una venta ya cobrada, se deshace y se vuelve a cobrar con los datos nuevos y el dólar de esa venta.
-import { manejar, json, error, leerJSON, texto, numero, sentenciaVersion, leerAjustes } from '../../../../lib/util.js';
-import { ESTADOS, estaCobrado, filaAPedido, sentenciasCobro, armarItems } from '../../../../lib/pedidos.js';
+import { manejar, json, error, leerJSON, texto, numero, sentenciaVersion, sentenciaCambio, leerAjustes } from '../../../../lib/util.js';
+import { ESTADOS, estaCobrado, filaAPedido, sentenciasCobro, armarItems, clienteDeEmail } from '../../../../lib/pedidos.js';
 import { asegurarEsquema } from '../../../../lib/esquema.js';
 
 async function buscar(env, id) {
@@ -24,6 +24,7 @@ export const onRequestGet = manejar(async ({ params, env }) => {
 
 async function editar(env, pedido, d) {
   const estado = ESTADOS.includes(d.estado) ? d.estado : pedido.estado;
+  if (d.nombre !== undefined && texto(d.nombre, 120).length < 2) return error(400, 'Escribí el nombre del cliente.');
   // El dólar de la venta original se mantiene: editar una venta vieja no la revalúa al dólar de hoy.
   const dolarVenta = await env.DB.prepare("SELECT cotizacion FROM movimientos WHERE pedido = ? AND categoria = 'Venta' LIMIT 1").bind(pedido.id).first('cotizacion');
   const dolar = dolarVenta || (await leerAjustes(env)).cotizacion || 0;
@@ -44,10 +45,12 @@ async function editar(env, pedido, d) {
     items,
     total,
   };
+  // Si cambia el email, la venta pasa a la cuenta de cliente con ese email (si hay una).
+  if (nuevo.email !== pedido.email) nuevo.cliente = await clienteDeEmail(env, nuevo.email);
   const hora = String(pedido.creado).slice(10) || ' 12:00:00';
   const sentencias = [env.DB.prepare(
-    'UPDATE pedidos SET estado = ?, nombre = ?, telefono = ?, email = ?, comentario = ?, notas = ?, metodo_pago = ?, items = ?, total = ?, creado = ? WHERE id = ?',
-  ).bind(estado, nuevo.nombre, nuevo.telefono, nuevo.email, nuevo.comentario, nuevo.notas, nuevo.metodo_pago, JSON.stringify(items), total, `${fecha}${hora}`, pedido.id)];
+    'UPDATE pedidos SET estado = ?, nombre = ?, telefono = ?, email = ?, cliente = ?, comentario = ?, notas = ?, metodo_pago = ?, items = ?, total = ?, creado = ? WHERE id = ?',
+  ).bind(estado, nuevo.nombre, nuevo.telefono, nuevo.email, nuevo.cliente ?? null, nuevo.comentario, nuevo.notas, nuevo.metodo_pago, JSON.stringify(items), total, `${fecha}${hora}`, pedido.id)];
 
   const antes = estaCobrado(pedido.estado);
   if (estaCobrado(estado)) {
@@ -95,7 +98,8 @@ export const onRequestPut = manejar(async ({ params, request, env }) => {
     opciones.metodo ?? pedido.metodo_pago,
     pedido.id,
   ));
-  if (sentencias.length > 1) sentencias.push(sentenciaVersion(env));
+  // Con cobro cambian la caja, el stock y los más vendidos; si no, solo se avisa al panel.
+  sentencias.push(sentencias.length > 1 ? sentenciaVersion(env) : sentenciaCambio(env));
   await env.DB.batch(sentencias);
   return json({ ok: true, pedido: await buscar(env, pedido.id) });
 });

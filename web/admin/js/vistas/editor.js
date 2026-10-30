@@ -55,6 +55,7 @@ function filaTamano(x = {}) {
       <label class="campo"><span>ml</span><input type="number" inputmode="numeric" min="0" step="1" name="ml" value="${v(x.ml)}" placeholder="100"></label>
       <label class="campo"><span>Precio USD</span><input type="number" inputmode="decimal" min="0" step="0.01" name="precio" value="${v(x.precio)}" required></label>
       <label class="campo"><span>Precio antes</span><input type="number" inputmode="decimal" min="0" step="0.01" name="precioAnterior" value="${v(x.precioAnterior)}" placeholder="—"></label>
+      <label class="campo"><span>Precio con cuenta</span><input type="number" inputmode="decimal" min="0" step="0.01" name="precioCuenta" value="${v(x.precioCuenta)}" placeholder="—" title="Oferta exclusiva: lo ven y lo pagan solo los clientes con cuenta"></label>
       <label class="campo"><span>Costo USD</span><input type="number" inputmode="decimal" min="0" step="0.01" name="costo" value="${v(x.costo)}" placeholder="—"></label>
       <label class="campo"><span>En stock</span><input type="number" inputmode="numeric" min="0" step="1" name="stock" value="${v(x.stock)}" placeholder="A pedido"></label>
       <button class="boton-icono fila-tamano__quitar" type="button" data-quitar-tamano aria-label="Quitar tamaño">${icono('basura')}</button>
@@ -81,7 +82,7 @@ export async function montar({ vista, params, app }) {
   const p = perfume || {
     marca: '', nombre: '', concentracion: 'Eau de Parfum', tipo: 'disenador-masculino', genero: 'hombre',
     familia: '', perfil: '', descripcion: '', notas: { salida: [], corazon: [], fondo: [], destacadas: [] },
-    acordes: [], estaciones: [], ocasiones: [], presentaciones: [{ ml: 100, precio: '', precioAnterior: null, costo: null, stock: null }],
+    acordes: [], estaciones: [], ocasiones: [], presentaciones: [{ ml: 100, precio: '', precioAnterior: null, precioCuenta: null, costo: null, stock: null }],
     imagen: null, imagen_fondo: '', imagenes: [], modelo3d: '', destacado: false, visible: true, fuente: '',
   };
   const estado = { imagen: p.imagen, fondo: p.imagen_fondo, imagenes: [...(p.imagenes || [])], fotosViejas: new Set(), sucio: false };
@@ -260,7 +261,7 @@ export async function montar({ vista, params, app }) {
     const f = form.elements;
     const presentaciones = [...form.querySelectorAll('[data-tamano]')].map((fila) => {
       const v = (n) => fila.querySelector(`[name=${n}]`).value.trim();
-      return { ml: Number(v('ml')) || 0, precio: v('precio'), precioAnterior: v('precioAnterior') || null, costo: v('costo') === '' ? null : v('costo'), stock: v('stock') === '' ? null : v('stock') };
+      return { ml: Number(v('ml')) || 0, precio: v('precio'), precioAnterior: v('precioAnterior') || null, precioCuenta: v('precioCuenta') || null, costo: v('costo') === '' ? null : v('costo'), stock: v('stock') === '' ? null : v('stock') };
     });
     const acordes = [...form.querySelectorAll('[data-acorde]')]
       .map((a) => ({ nombre: a.querySelector('[name=acorde]').value.trim(), intensidad: Number(a.querySelector('[name=intensidad]').value) }))

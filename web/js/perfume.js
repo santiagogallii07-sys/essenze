@@ -1,6 +1,6 @@
 import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, agregarABolsa, escapar, enlaceWhatsapp, observarRevelado, botonFavorito, garantias } from './interfaz.js';
-import { precio, precioArs, presentacionesOrdenadas, hayInmediata, inmediata, obtenerPerfume, MAXIMO_POR_LINEA, textoMl, normalizar } from './datos.js';
+import { precio, precioArs, presentacionesOrdenadas, hayInmediata, inmediata, obtenerPerfume, MAXIMO_POR_LINEA, textoMl, normalizar, descuentoCuenta } from './datos.js';
 import { montarVisor } from './visor.js';
 import { fotoPersonaje } from './personaje.js';
 import { icono, iconoWhatsapp } from './iconos.js';
@@ -10,6 +10,8 @@ const id = new URLSearchParams(location.search).get('p');
 const raiz = document.querySelector('[data-ficha]');
 
 let p = null;
+// La ficha deja acá cómo repintar los precios (ver "catalogo:cambio" más abajo).
+let alCambiarPrecios = null;
 try {
   p = id ? await obtenerPerfume(id) : null;
 } catch {
@@ -28,6 +30,19 @@ if (!p) {
 } else {
   pintarFicha(p);
 }
+
+// Cambió el catálogo (precio, stock u oferta desde el panel, el dólar, o se abrió o cerró la cuenta):
+// se traen los datos nuevos del perfume y se actualizan los precios sin tocar la foto ni lo elegido.
+document.addEventListener('catalogo:cambio', async () => {
+  if (!p || !alCambiarPrecios) return;
+  const nuevo = await obtenerPerfume(p.id).catch(() => null);
+  if (!nuevo) return;
+  for (const x of p.presentaciones) {
+    const n = nuevo.presentaciones.find((y) => y.ml === x.ml);
+    if (n) Object.assign(x, n);
+  }
+  alCambiarPrecios();
+});
 
 function piramide(notas) {
   const niveles = [
@@ -63,14 +78,16 @@ function pintarFicha(p) {
 
   const pres = presentacionesOrdenadas(p);
   const inicial = pres[0];
-  const tamanos = pres.map((x) => `
+  const etiquetasTamanos = (elegido) => pres.map((x) => `
     <label class="tamano">
-      <input type="radio" name="ml" value="${x.ml}" ${x.ml === inicial.ml ? 'checked' : ''}>
+      <input type="radio" name="ml" value="${x.ml}" ${x.ml === elegido ? 'checked' : ''}>
       <span class="tamano__ml">${textoMl(x.ml)}</span>
       <span class="tamano__precio">${precio(x.precio)}</span>
       ${x.precioAnterior && x.precioAnterior > x.precio ? `<s class="tamano__antes">${precio(x.precioAnterior)}</s>` : ''}
       ${inmediata(x) ? '<span class="tamano__entrega">Entrega inmediata</span>' : ''}
+      ${x.exclusivo ? '<span class="tamano__entrega">Precio exclusivo con tu cuenta</span>' : descuentoCuenta({ presentaciones: [x] }) ? `<span class="tamano__entrega tamano__cuenta">Con tu cuenta: ${precio(x.precioCuenta)}</span>` : ''}
     </label>`).join('');
+  const tamanos = etiquetasTamanos(inicial.ml);
 
   const consulta = enlaceWhatsapp(`Hola! Quería consultar por ${titulo}${p.concentracion ? ` (${p.concentracion})` : ''}.`);
   const tienePiramide = ['salida', 'corazon', 'fondo'].some((k) => (p.notas?.[k] || []).length);
@@ -175,6 +192,11 @@ function pintarFicha(p) {
     barra.querySelector('[data-barra-precio]').textContent = `${textoMl(x.ml)} · ${precio(x.precio)}`;
   }
   form.addEventListener('change', refrescar);
+  // Precios o stock nuevos (desde el panel, o al entrar a la cuenta): se repintan los tamaños sin perder lo elegido.
+  alCambiarPrecios = () => {
+    form.querySelector('.tamanos').innerHTML = etiquetasTamanos(seleccion().ml);
+    refrescar();
+  };
   form.addEventListener('click', (e) => {
     const b = e.target.closest('[data-cant]');
     if (!b) return;

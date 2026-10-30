@@ -1,10 +1,13 @@
 // POST /api/pedidos → guarda el pedido que el cliente manda por WhatsApp.
 // Los precios se recalculan acá con los de la base: nunca se confía en lo que manda el navegador.
-import { manejar, json, error, leerJSON, texto, numero, ipDe, idAleatorio, hoyArgentina } from '../../lib/util.js';
+import { manejar, json, error, leerJSON, texto, numero, ipDe, idAleatorio, hoyArgentina, sentenciaCambio } from '../../lib/util.js';
+import { conNumeroNuevo } from '../../lib/pedidos.js';
+import { clienteDeSesion, precioParaCliente } from '../../lib/cuentas.js';
+import { asegurarEsquema } from '../../lib/esquema.js';
 
 export const onRequestPost = manejar(async ({ request, env }) => {
   const d = await leerJSON(request, 50_000);
-  if (d.sitio) return json({ ok: true, numero: d.numero || '' }); // trampa para robots
+  if (d.sitio) return json({ ok: true, numero: 0 }); // trampa para robots
 
   const nombre = texto(d.nombre, 120);
   const email = texto(d.email, 160);
@@ -15,6 +18,9 @@ export const onRequestPost = manejar(async ({ request, env }) => {
   const pedidos = Array.isArray(d.items) ? d.items.slice(0, 40) : [];
   if (!pedidos.length) return error(400, 'El pedido está vacío.');
 
+  await asegurarEsquema(env);
+  // Con la cuenta abierta, el pedido suma puntos y lleva los precios exclusivos para clientes.
+  const cliente = await clienteDeSesion(env, request);
   const ip = ipDe(request);
   const recientes = await env.DB.prepare(
     "SELECT count(*) AS n FROM pedidos WHERE ip = ? AND creado > datetime('now', '-1 hour')",
@@ -34,19 +40,22 @@ export const onRequestPost = manejar(async ({ request, env }) => {
     const pres = p?.presentaciones.find((x) => x.ml === ml);
     const cantidad = Math.min(50, Math.max(1, Math.round(numero(i.cantidad, 1))));
     if (!p || !pres) continue;
-    items.push({ id: p.id, marca: p.marca, nombre: p.nombre, concentracion: p.concentracion, ml, cantidad, precio: pres.precio, costo: pres.costo ?? null });
+    items.push({ id: p.id, marca: p.marca, nombre: p.nombre, concentracion: p.concentracion, ml, cantidad, precio: precioParaCliente(pres, !!cliente), costo: pres.costo ?? null });
   }
   if (!items.length) return error(400, 'Los perfumes del pedido ya no están disponibles.');
 
   const total = Math.round(items.reduce((n, i) => n + i.precio * i.cantidad, 0) * 100) / 100;
-  let numeroPedido = /^E-\d{6}-[A-Z0-9]{4}$/.test(d.numero) ? d.numero : `E-${hoyArgentina().slice(2).replace(/-/g, '')}-${idAleatorio(4).toUpperCase()}`;
-  const existe = await env.DB.prepare('SELECT 1 FROM pedidos WHERE id = ?').bind(numeroPedido).first();
-  if (existe) numeroPedido = `${numeroPedido}-${idAleatorio(2).toUpperCase()}`;
-
-  await env.DB.prepare(
-    `INSERT INTO pedidos (id, origen, estado, nombre, email, telefono, comentario, items, total, ip)
-     VALUES (?, 'web', 'nuevo', ?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(numeroPedido, nombre, email, telefono, texto(d.comentario, 600), JSON.stringify(items), total, ip).run();
+  const id = `E-${hoyArgentina().slice(2).replace(/-/g, '')}-${idAleatorio(4).toUpperCase()}`;
+  const numeroPedido = await conNumeroNuevo(env, async (n) => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO pedidos (id, numero, origen, estado, nombre, email, telefono, cliente, comentario, items, total, ip)
+         VALUES (?, ?, 'web', 'nuevo', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(id, n, nombre, email, telefono, cliente?.id ?? null, texto(d.comentario, 600), JSON.stringify(items), total, ip),
+      sentenciaCambio(env),
+    ]);
+    return n;
+  });
 
   return json({ ok: true, numero: numeroPedido, total });
 });

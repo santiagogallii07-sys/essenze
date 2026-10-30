@@ -1,28 +1,86 @@
 import { CONFIG } from './config.js';
+import { cuentaAbierta } from './cuenta.js';
 
 let catalogo = null;
+let datosCatalogo = null;
 
-async function leer(url) {
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+async function leer(url, opciones = {}) {
+  const res = await fetch(url, { headers: { Accept: 'application/json' }, ...opciones });
   if (!res.ok) throw new Error(`No se pudo leer ${url} (${res.status})`);
   return res.json();
 }
 
-// Un solo pedido trae perfumes, ofertas vigentes y datos de la tienda.
+function aplicarAjustes(d) {
+  Object.assign(CONFIG, d.ajustes || {});
+  // Estilo de las fotos (fondo blanco o escenario oscuro), elegido en el panel. Se recuerda para la próxima visita.
+  const estilo = CONFIG.estiloFotos === 'oscuro' ? 'oscuro' : 'blanco';
+  document.documentElement.dataset.fotos = estilo;
+  try { localStorage.setItem('essenze-fotos', estilo); } catch { /* sin almacenamiento */ }
+}
+
+// Ofertas exclusivas: con la cuenta abierta, el precio para clientes pasa a ser el precio (el de lista queda tachado).
+// Se puede aplicar varias veces: al entrar o salir de la cuenta, los precios se vuelven a calcular sin recargar.
+export function aplicarPreciosCuenta(perfumes) {
+  const conCuenta = !!cuentaAbierta();
+  for (const p of perfumes) {
+    for (const x of p.presentaciones) {
+      x.precioLista ??= x.precio;
+      if (!(x.precioCuenta && x.precioCuenta < x.precioLista)) continue;
+      if (x.anteriorLista === undefined) x.anteriorLista = x.precioAnterior ?? null;
+      x.exclusivo = conCuenta;
+      x.precio = conCuenta ? x.precioCuenta : x.precioLista;
+      x.precioAnterior = conCuenta ? Math.max(x.anteriorLista || 0, x.precioLista) : x.anteriorLista;
+    }
+  }
+  return perfumes;
+}
+
+// Descuento de la oferta exclusiva (para invitar a crear una cuenta a quien todavía no tiene).
+export function descuentoCuenta(p) {
+  return p.presentaciones.reduce((max, x) => {
+    const lista = x.precioLista ?? x.precio;
+    return x.precioCuenta && x.precioCuenta < lista ? Math.max(max, Math.round((1 - x.precioCuenta / lista) * 100)) : max;
+  }, 0);
+}
+
+export const tieneExclusiva = (p) => p.presentaciones.some((x) => x.exclusivo);
+
+// Un solo pedido trae perfumes, ofertas vigentes, los más vendidos y datos de la tienda.
 export function obtenerCatalogo() {
   if (!catalogo) {
     catalogo = leer('/api/catalogo').then((d) => {
-      Object.assign(CONFIG, d.ajustes || {});
-      // Estilo de las fotos (fondo blanco o escenario oscuro), elegido en el panel. Se recuerda para la próxima visita.
-      const estilo = CONFIG.estiloFotos === 'oscuro' ? 'oscuro' : 'blanco';
-      document.documentElement.dataset.fotos = estilo;
-      try { localStorage.setItem('essenze-fotos', estilo); } catch { /* sin almacenamiento */ }
+      aplicarAjustes(d);
+      aplicarPreciosCuenta(d.perfumes);
+      datosCatalogo = d;
       return d;
     });
     catalogo.catch(() => { catalogo = null; });
   }
   return catalogo;
 }
+
+function avisarCambio() {
+  document.dispatchEvent(new CustomEvent('catalogo:cambio', { detail: datosCatalogo }));
+}
+
+// Trae el catálogo de nuevo (cambió algo en el panel) y avisa a la página para que se vuelva a pintar.
+// Los arreglos se actualizan en el lugar: las páginas que los tienen guardados ven los datos nuevos.
+export async function refrescarCatalogo() {
+  if (!datosCatalogo) return;
+  const d = await leer('/api/catalogo', { cache: 'no-store' });
+  aplicarAjustes(d);
+  aplicarPreciosCuenta(d.perfumes);
+  datosCatalogo.perfumes.splice(0, datosCatalogo.perfumes.length, ...d.perfumes);
+  Object.assign(datosCatalogo, { ...d, perfumes: datosCatalogo.perfumes });
+  avisarCambio();
+}
+
+// Al entrar o salir de la cuenta cambian los precios exclusivos.
+document.addEventListener('cuenta:cambio', () => {
+  if (!datosCatalogo) return;
+  aplicarPreciosCuenta(datosCatalogo.perfumes);
+  avisarCambio();
+});
 
 export async function obtenerPerfumes() {
   return (await obtenerCatalogo()).perfumes;
@@ -37,7 +95,9 @@ export async function obtenerPerfume(id) {
   const res = await fetch(`/api/perfumes/${encodeURIComponent(id)}`, { headers: { Accept: 'application/json' } });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('No se pudo cargar el perfume.');
-  return res.json();
+  const p = await res.json();
+  if (p?.presentaciones) aplicarPreciosCuenta([p]);
+  return p;
 }
 
 export function presentacionesOrdenadas(p) {

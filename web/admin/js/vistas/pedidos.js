@@ -2,10 +2,16 @@
 import { api } from '../api.js';
 import { icono, escapar, usd, ars, pesos, precioDoble, dolarActual, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar } from '../ui.js';
 import { iconoWhatsapp } from '/js/iconos.js';
+import { perfumesLivianos, olvidarPerfumes, buscarEn } from '../datos.js';
 
 const METODOS = ['Efectivo', 'Transferencia', 'Mercado Pago', 'Tarjeta', 'Dólares en efectivo', 'Otro'];
 const SIGUIENTE = { nuevo: 'confirmado', confirmado: 'cobrado', cobrado: 'entregado' };
 const TEXTO_SIGUIENTE = { nuevo: 'Confirmar', confirmado: 'Cobrar', cobrado: 'Marcar entregado' };
+// Filtros de la lista, en este orden (abre en Todos).
+const FILTROS = { todos: 'Todos', nuevo: 'Nuevos', confirmado: 'Confirmados', cobrado: 'Cobrados', entregado: 'Entregados', cancelado: 'Cancelados' };
+
+// Número que ve el cliente (#1001); los pedidos viejos sin número muestran su código.
+const numeroDe = (p) => (p.numero ? `#${p.numero}` : p.id);
 
 // Pesos de una venta: con el dólar de esa venta cuando se cobró en pesos (así no aparecen redondeos).
 function cobradoTexto(p, montoUsd = p.cobrado) {
@@ -15,16 +21,16 @@ function cobradoTexto(p, montoUsd = p.cobrado) {
 
 function tarjeta(p) {
   const wa = whatsappDe(p.telefono);
-  const saludo = encodeURIComponent(`Hola ${p.nombre.split(' ')[0] || ''}! Te escribo de Essenze por tu pedido ${p.id}.`);
+  const saludo = encodeURIComponent(`Hola ${p.nombre.split(' ')[0] || ''}! Te escribo de Essenze por tu pedido ${numeroDe(p)}.`);
   return `
     <article class="tarjeta-pedido" data-id="${escapar(p.id)}">
       <div class="tarjeta-pedido__cabeza">
-        <span class="tarjeta-pedido__numero">${escapar(p.id)}</span>
+        <span class="tarjeta-pedido__numero">${escapar(numeroDe(p))}</span>
         <span class="estado estado--${p.estado}">${ESTADOS[p.estado]}</span>
         <span class="tarjeta-pedido__total">${precioDoble(p.total)}</span>
       </div>
       <div class="tarjeta-pedido__cliente">
-        <span>${escapar(p.nombre || 'Venta sin nombre')} <span class="origen">· ${{ manual: 'venta manual', excel: 'planilla', web: 'web' }[p.origen] || p.origen}</span></span>
+        <span>${escapar(p.nombre || 'Sin nombre')} <span class="origen">· ${{ manual: 'venta manual', excel: 'planilla', web: 'web' }[p.origen] || p.origen}</span></span>
         <small>${[p.telefono, p.email].filter(Boolean).map(escapar).join(' · ')}${p.telefono || p.email ? ' · ' : ''}${fechaHora(p.creado)}</small>
       </div>
       <ul class="tarjeta-pedido__items">
@@ -44,7 +50,7 @@ function tarjeta(p) {
 
 function dialogoCobro(pedido) {
   const h = hoja({
-    titulo: `Cobrar ${pedido.id}`,
+    titulo: `Cobrar ${numeroDe(pedido)}`,
     ancho: 460,
     html: `
       ${dolarActual() ? `<label class="campo"><span>Monto cobrado ($)</span><input type="number" inputmode="decimal" step="1" min="0" value="${Math.round((pedido.total * dolarActual()) / 100) * 100}" data-monto data-pesos></label>` : `<label class="campo"><span>Monto cobrado (USD)</span><input type="number" inputmode="decimal" step="0.01" min="0" value="${pedido.total}" data-monto></label>`}
@@ -63,13 +69,32 @@ function dialogoCobro(pedido) {
 
 // Registrar una venta nueva o editar una existente (todo: perfumes, precios, costos, cliente, fecha, estado y cobro).
 // El costo se carga en dólares (o en pesos, si se elige) y queda en dólares como "último costo" del perfume.
-async function dialogoVenta(pedido = null) {
+// boton: el que abrió la ventana; muestra que está cargando hasta que la ventana aparece.
+async function dialogoVenta(pedido = null, boton = null) {
   const editando = !!pedido;
-  const [lista, ajustes, detalle] = await Promise.all([
-    api('/perfumes'),
-    api('/ajustes'),
-    editando ? api(`/pedidos/${encodeURIComponent(pedido.id)}`) : null,
-  ]);
+  if (boton) {
+    boton.disabled = true;
+    boton.classList.add('es-cargando');
+  }
+  let lista;
+  let ajustes;
+  let detalle;
+  try {
+    // La lista de perfumes es liviana y queda guardada: desde la segunda venta la ventana abre al instante.
+    [lista, ajustes, detalle] = await Promise.all([
+      perfumesLivianos(),
+      api('/ajustes'),
+      editando ? api(`/pedidos/${encodeURIComponent(pedido.id)}`) : null,
+    ]);
+  } catch (err) {
+    avisoError(err);
+    return false;
+  } finally {
+    if (boton) {
+      boton.disabled = false;
+      boton.classList.remove('es-cargando');
+    }
+  }
   const movimientos = detalle?.movimientos || [];
   const venta = movimientos.find((m) => m.categoria === 'Venta');
   // Al editar se usa el dólar de esa venta, así los pesos no cambian con el dólar de hoy.
@@ -78,7 +103,6 @@ async function dialogoVenta(pedido = null) {
   const enMoneda = (usdN) => (enPesos ? Math.round((usdN * cot) / 100) * 100 : usdN);
   const textoMoneda = (n) => (enPesos ? ars(n) : usd(n));
   const aPesosMov = (m) => (m.moneda === 'ARS' && m.monto_original !== null ? m.monto_original : m.monto * (m.cotizacion || cot || 1));
-  const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const presDe = (l) => lista.find((x) => x.id === l.id)?.presentaciones.find((x) => x.ml === l.ml);
 
   const lineas = editando
@@ -111,7 +135,7 @@ async function dialogoVenta(pedido = null) {
   const cobrado = (e) => ['cobrado', 'entregado'].includes(e);
 
   const h = hoja({
-    titulo: editando ? `Editar ${pedido.id}` : 'Registrar venta',
+    titulo: editando ? `Editar ${numeroDe(pedido)}` : 'Registrar venta',
     ancho: 680,
     html: `
       <p class="campo__ayuda">${editando
@@ -130,7 +154,7 @@ async function dialogoVenta(pedido = null) {
       </div>
       <div class="lineas-venta" data-lineas></div>
       <div class="form-grilla form-grilla--2">
-        <label class="campo"><span>Cliente${editando ? '' : ' (opcional)'}</span><input data-nombre autocomplete="off" value="${escapar(pedido?.nombre || '')}"></label>
+        <label class="campo"><span>Nombre del cliente</span><input data-nombre autocomplete="off" autocapitalize="words" required value="${escapar(pedido?.nombre || '')}"><small class="campo__error" data-error-nombre></small></label>
         <label class="campo"><span>Teléfono${editando ? '' : ' (opcional)'}</span><input data-telefono type="tel" inputmode="tel" autocomplete="off" value="${escapar(pedido?.telefono || '')}"></label>
         <label class="campo"><span>Email${editando ? '' : ' (opcional)'}</span><input data-email type="email" inputmode="email" autocomplete="off" value="${escapar(pedido?.email || '')}"></label>
         <label class="campo"><span>Fecha</span><input type="date" value="${fechaInicial}" data-fecha></label>
@@ -199,8 +223,7 @@ async function dialogoVenta(pedido = null) {
   }
 
   buscar.addEventListener('input', demorar(() => {
-    const q = norm(buscar.value).split(/\s+/).filter(Boolean);
-    const r = q.length ? lista.filter((p) => q.every((w) => norm(`${p.marca} ${p.nombre}`).includes(w))).slice(0, 8) : [];
+    const r = buscarEn(lista, buscar.value);
     resultados.hidden = !r.length;
     resultados.innerHTML = r.map((p) => `<button type="button" data-id="${escapar(p.id)}">${miniatura(p)}<span>${escapar(p.marca)} · ${escapar(p.nombre)}</span></button>`).join('');
   }, 120));
@@ -267,6 +290,13 @@ async function dialogoVenta(pedido = null) {
   d.querySelector('[data-guardar]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
     if (!lineas.length) return aviso('Agregá al menos un perfume.', 'error');
     const valor = (sel) => d.querySelector(sel)?.value;
+    // El nombre es obligatorio: así cada venta queda a nombre de alguien.
+    const campoNombre = d.querySelector('[data-nombre]');
+    if (campoNombre.value.trim().length < 2) {
+      d.querySelector('[data-error-nombre]').textContent = 'Escribí el nombre del cliente.';
+      campoNombre.focus();
+      return undefined;
+    }
     const datos = {
       items: lineas.map((l) => ({
         id: l.id,
@@ -295,6 +325,7 @@ async function dialogoVenta(pedido = null) {
     try {
       if (editando) await api(`/pedidos/${encodeURIComponent(pedido.id)}`, { metodo: 'PUT', datos });
       else await api('/pedidos', { metodo: 'POST', datos });
+      olvidarPerfumes(); // cambió el último costo de esos perfumes
       aviso(editando ? 'Venta actualizada' : 'Venta registrada');
       h.cerrar(true);
     } catch (err) {
@@ -302,6 +333,7 @@ async function dialogoVenta(pedido = null) {
     }
     return undefined;
   }));
+  d.querySelector('[data-nombre]').addEventListener('input', () => { d.querySelector('[data-error-nombre]').textContent = ''; });
   pintarLineas();
   mostrarCobro();
   if (!editando) setTimeout(() => buscar.focus(), 80);
@@ -316,12 +348,14 @@ export async function montar({ vista, consulta, app }) {
   venta.innerHTML = `${icono('mas')}<span>Venta</span>`;
   app.acciones(venta);
 
-  const estado = { filtro: sessionStorage.getItem('admin-pedidos-filtro') || 'nuevo', q: '' };
+  const guardado = sessionStorage.getItem('admin-pedidos-filtro');
+  const estado = { filtro: FILTROS[guardado] ? guardado : 'todos', q: consulta.get('q') || '' };
+  if (estado.q) estado.filtro = 'todos';
   let datos = { pedidos: [], cuentas: {} };
 
   vista.innerHTML = `
     <div class="herramientas-admin">
-      <label class="buscador-admin">${icono('buscar')}<input class="entrada" type="search" placeholder="Buscar número, nombre o teléfono" data-q enterkeyhint="search" aria-label="Buscar pedidos"></label>
+      <label class="buscador-admin">${icono('buscar')}<input class="entrada" type="search" placeholder="Buscar número, cliente o perfume" value="${escapar(estado.q)}" data-q enterkeyhint="search" aria-label="Buscar pedidos"></label>
       <div class="chips-admin" data-filtros role="group" aria-label="Estado"></div>
     </div>
     <div data-lista></div>`;
@@ -339,7 +373,7 @@ export async function montar({ vista, consulta, app }) {
 
   function pintar() {
     const total = Object.values(datos.cuentas).reduce((a, b) => a + b, 0);
-    vista.querySelector('[data-filtros]').innerHTML = [...Object.entries(ESTADOS), ['todos', 'Todos']].map(([k, v]) => {
+    vista.querySelector('[data-filtros]').innerHTML = Object.entries(FILTROS).map(([k, v]) => {
       const n = k === 'todos' ? total : datos.cuentas[k] || 0;
       return `<button class="chip-admin" type="button" data-filtro="${k}" aria-pressed="${estado.filtro === k}">${v}<span>${n}</span></button>`;
     }).join('');
@@ -376,7 +410,7 @@ export async function montar({ vista, consulta, app }) {
     const p = datos.pedidos.find((x) => x.id === art.dataset.id);
     if (e.target.closest('[data-editar]')) {
       try {
-        if (await dialogoVenta(p)) await cargar();
+        if (await dialogoVenta(p, e.target.closest('[data-editar]'))) await cargar();
       } catch (err) {
         avisoError(err);
       }
@@ -394,7 +428,7 @@ export async function montar({ vista, consulta, app }) {
     }
     if (e.target.closest('[data-opciones]')) {
       const h = hoja({
-        titulo: p.id,
+        titulo: numeroDe(p),
         ancho: 460,
         html: `
           <label class="campo"><span>Estado</span><select data-estado>${Object.entries(ESTADOS).map(([k, v]) => `<option value="${k}" ${p.estado === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
@@ -413,7 +447,7 @@ export async function montar({ vista, consulta, app }) {
       });
       h.dialogo.querySelector('[data-eliminar]').addEventListener('click', async () => {
         h.cerrar();
-        if (await confirmar(`¿Eliminar el pedido ${p.id}?`, { aceptar: 'Eliminar', peligro: true, detalle: p.cobrado ? 'También se borra su ingreso de la caja y se devuelve el stock.' : '' })) {
+        if (await confirmar(`¿Eliminar el pedido ${numeroDe(p)}?`, { aceptar: 'Eliminar', peligro: true, detalle: p.cobrado ? 'También se borra su ingreso de la caja y se devuelve el stock.' : '' })) {
           await api(`/pedidos/${encodeURIComponent(p.id)}`, { metodo: 'DELETE' }).catch(avisoError);
           cargar();
         }
@@ -422,13 +456,15 @@ export async function montar({ vista, consulta, app }) {
   });
 
   venta.addEventListener('click', async () => {
-    if (await dialogoVenta()) {
+    if (await dialogoVenta(null, venta)) {
       estado.filtro = 'cobrado';
       cargar();
     }
   });
 
   await cargar();
+  // La lista de perfumes se baja de antemano: al tocar "Venta" ya está lista.
+  perfumesLivianos().catch(() => {});
   if (consulta.has('venta')) venta.click();
   return undefined;
 }

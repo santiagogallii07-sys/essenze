@@ -26,46 +26,64 @@
   <a class="saltar" href="#contenido">Saltar al contenido</a>
   <header class="cabecera" data-cabecera></header>
 
-  <main id="contenido">
-    <section class="cartelera" data-cartelera aria-roledescription="carrusel" aria-label="Ofertas y novedades">
-      <div class="cartelera__esqueleto" aria-hidden="true"></div>
-    </section>
-
-    <section class="garantias" data-garantias aria-label="Originales, envíos y formas de pago"></section>
-
-    <nav class="cinta" data-marcas aria-label="Marcas"></nav>
-
-    <section class="seccion contenedor" aria-labelledby="t-tipos">
-      <div class="seccion__cabecera">
-        <h2 class="titulo-seccion revelar revelar--linea" id="t-tipos">Elegí tu estilo</h2>
+  <main id="contenido" class="inicio">
+    <!-- Arriba: mitad "Elegí tu estilo" y mitad la cartelera (cocodrilo y banners) -->
+    <section class="portada-doble contenedor" aria-label="Estilos y novedades">
+      <div class="portada-doble__estilos">
+        <h1 class="solo-lector" id="t-tipos">Elegí tu estilo</h1>
+        <ul class="tipos" data-tipos aria-labelledby="t-tipos"></ul>
       </div>
-      <ul class="tipos" data-tipos></ul>
+      <div class="portada-doble__cartel cartelera" data-cartelera aria-roledescription="carrusel" aria-label="Ofertas y novedades">
+        <div class="cartelera__esqueleto" aria-hidden="true"></div>
+      </div>
     </section>
 
-    <section class="seccion contenedor" aria-labelledby="t-destacados">
+    <section class="seccion-inicio contenedor" aria-label="Marcas" data-seccion-marcas>
+      <button class="boton-marcas" type="button" data-todas-marcas>
+        <span class="boton-marcas__cinta" aria-hidden="true" data-cinta-marcas></span>
+        <span class="boton-marcas__texto">Ver todas las marcas</span>
+        <span class="boton-marcas__cuenta" data-cuenta-marcas></span>
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg>
+      </button>
+    </section>
+
+    <section class="seccion-inicio contenedor" aria-labelledby="t-vendidos" data-seccion-vendidos hidden>
       <div class="seccion__cabecera">
-        <h2 class="titulo-seccion revelar revelar--linea" id="t-destacados">Perfumes</h2>
+        <h2 class="titulo-seccion revelar revelar--linea" id="t-vendidos">Lo más vendido</h2>
+        <a class="enlace-dorado" href="/catalogo?orden=vendidos">Ver más <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg></a>
+      </div>
+      <div class="grilla-productos grilla-productos--fila fila-inicio" data-vendidos></div>
+    </section>
+
+    <section class="seccion-inicio contenedor" aria-labelledby="t-destacados">
+      <div class="seccion__cabecera">
+        <h2 class="titulo-seccion revelar revelar--linea" id="t-destacados">Destacados</h2>
         <a class="enlace-dorado" href="/catalogo">Ver los <span data-total-perfumes></span> <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg></a>
       </div>
-      <div class="grilla-productos" data-destacados></div>
+      <div class="grilla-productos grilla-productos--fila fila-inicio fila-inicio--doble" data-destacados></div>
     </section>
 
-    <section class="olor" aria-labelledby="t-olor">
-      <div class="contenedor olor__interior">
-        <div class="olor__texto">
-          <h2 class="titulo-seccion revelar revelar--linea" id="t-olor">Aroma</h2>
-          <p>¿Te gustan los perfumes dulces, frescos o amaderados? Tocá un acorde y te mostramos los perfumes donde más se siente.</p>
-        </div>
-        <ul class="acordes-nube" data-acordes></ul>
-      </div>
-    </section>
-
-    <section class="seccion contenedor" aria-labelledby="t-ofertas" data-seccion-ofertas>
+    <section class="seccion-inicio contenedor" aria-labelledby="t-ofertas" data-seccion-ofertas hidden>
       <div class="seccion__cabecera">
         <h2 class="titulo-seccion revelar revelar--linea" id="t-ofertas">En oferta</h2>
         <a class="enlace-dorado" href="/catalogo?oferta=1">Ver ofertas <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg></a>
       </div>
-      <div class="grilla-productos grilla-productos--fila" data-ofertas></div>
+      <div class="grilla-productos grilla-productos--fila fila-inicio" data-ofertas></div>
+    </section>
+
+    <section class="seccion-inicio contenedor" aria-labelledby="t-inmediata" data-seccion-inmediata hidden>
+      <div class="seccion__cabecera">
+        <h2 class="titulo-seccion revelar revelar--linea" id="t-inmediata">Entrega inmediata</h2>
+        <a class="enlace-dorado" href="/catalogo?stock=1">Ver todos <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg></a>
+      </div>
+      <div class="grilla-productos grilla-productos--fila fila-inicio" data-inmediata></div>
+    </section>
+
+    <section class="olor" aria-labelledby="t-olor">
+      <div class="contenedor olor__interior">
+        <h2 class="titulo-seccion revelar revelar--linea" id="t-olor">Buscá por aroma</h2>
+        <ul class="acordes-nube" data-acordes></ul>
+      </div>
     </section>
 
     <section class="pasos contenedor" aria-labelledby="t-pasos">

@@ -7,9 +7,11 @@ import { arrastrarParaCerrar } from './arrastre.js';
 import { videoPersonaje, fotoPersonaje, reproducir, reproducirAlVer } from './personaje.js';
 import * as carrito from './carrito.js';
 import { obtenerFavoritos, esFavorito, alternarFavorito, depurarFavoritos } from './favoritos.js';
+import { cuentaAbierta, crearCuenta, ingresar, traerCuenta } from './cuenta.js';
 import {
   obtenerCatalogo, precio, precioArs, precioDesde, hayInmediata, inmediata, enOferta, descuentoMaximo,
   presentacionesOrdenadas, enlacePerfume, MAXIMO_POR_LINEA, textoMl, normalizar, textoBuscable,
+  descuentoCuenta, tieneExclusiva, refrescarCatalogo,
 } from './datos.js';
 
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -46,6 +48,12 @@ function cabecera(pagina) {
   const enlaces = NAV.map((n) => `<li><a href="${n.href}" ${n.id === pagina ? 'aria-current="page"' : ''}>${n.texto}</a></li>`).join('');
   // En el celular no entra un tercer ícono en la cabecera: los favoritos van en el menú.
   const favoritosMenu = `<li><a class="menu-movil__favoritos" href="/favoritos" ${pagina === 'favoritos' ? 'aria-current="page"' : ''}>${icono('corazon')}Favoritos <span data-cantidad-favoritos></span></a></li>`;
+  // Marcas: se despliegan en una lista corta que se desliza (se llena cuando llega el catálogo).
+  const marcasMenu = `
+    <li class="menu-movil__marcas">
+      <button class="menu-movil__desplegar" type="button" aria-expanded="false" aria-controls="menu-marcas" data-desplegar-marcas>Marcas ${icono('abajo')}</button>
+      <ul class="menu-movil__lista-marcas" id="menu-marcas" data-menu-marcas hidden></ul>
+    </li>`;
   return `
   <div class="cabecera__barra contenedor">
     <button class="boton-icono cabecera__menu" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-movil">${icono('menu')}</button>
@@ -59,12 +67,14 @@ function cabecera(pagina) {
       <a class="boton-icono boton-favoritos" href="/favoritos" data-boton-favoritos aria-label="Favoritos" ${pagina === 'favoritos' ? 'aria-current="page"' : ''}>
         ${icono('corazon')}<span class="boton-bolsa__cantidad" data-cantidad-favoritos hidden>0</span>
       </a>
+      <button class="boton-icono boton-cuenta" type="button" data-abrir-cuenta aria-label="Crear cuenta o ingresar" ${pagina === 'cuenta' ? 'aria-current="page"' : ''}>${icono('usuario')}</button>
       <button class="boton-icono boton-bolsa" type="button" data-abrir-bolsa aria-label="Abrir bolsa de compras">
         ${icono('bolsa')}<span class="boton-bolsa__cantidad" data-cantidad-bolsa hidden>0</span>
       </button>
     </div>
   </div>
-  <nav class="menu-movil" id="menu-movil" aria-label="Menú" hidden><ul>${enlaces}${favoritosMenu}</ul></nav>`;
+  <nav class="menu-movil" id="menu-movil" aria-label="Menú" hidden><ul>${enlaces}${marcasMenu}${favoritosMenu}
+    <li><a class="menu-movil__favoritos" href="/cuenta" ${pagina === 'cuenta' ? 'aria-current="page"' : ''}>${icono('usuario')}<span data-texto-cuenta>Crear cuenta o ingresar</span></a></li></ul></nav>`;
 }
 
 function formatoTelefono(n) {
@@ -90,6 +100,7 @@ function pie() {
         <li><a class="pie__wa" href="${wa}" target="_blank" rel="noopener">${iconoWhatsapp()}<span>${formatoTelefono(CONFIG.whatsapp)}</span></a></li>
         <li class="pie__lugar">${icono('ubicacion')}<span>${escapar(CONFIG.ciudad)}</span></li>
         ${CONFIG.instagram ? `<li><a class="pie__wa" href="https://instagram.com/${escapar(CONFIG.instagram)}" target="_blank" rel="noopener">${icono('instagram')}<span>@${escapar(CONFIG.instagram)}</span></a></li>` : ''}
+        <li><a class="pie__wa pie__mayorista" href="${wa}?text=${encodeURIComponent('Hola Essenze! Quiero consultar por una compra mayorista.')}" target="_blank" rel="noopener">${icono('paquete')}<span>¿Compra mayorista? Consultanos por WhatsApp</span></a></li>
       </ul>
       <p class="pie__nota">Pedidos y consultas por WhatsApp. El pago y la entrega se coordinan con vos.</p>
     </div>
@@ -148,6 +159,212 @@ function alTocarFavorito(boton) {
   } else {
     aviso(`Quitaste ${nombre} de favoritos`, { texto: 'Deshacer', alHacer: () => alternarFavorito(id) });
   }
+}
+
+/* ---------- Marcas ---------- */
+
+// Marcas con la cantidad de perfumes, de la que tiene más a la que tiene menos.
+export function marcasConCuenta(perfumes) {
+  const cuenta = new Map();
+  perfumes.forEach((p) => cuenta.set(p.marca, (cuenta.get(p.marca) || 0) + 1));
+  return [...cuenta.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+}
+
+const enlaceMarca = (m) => `/catalogo?marca=${encodeURIComponent(m)}`;
+
+function pintarMarcasMenu(perfumes) {
+  const ul = document.querySelector('[data-menu-marcas]');
+  if (!ul) return;
+  ul.innerHTML = `${marcasConCuenta(perfumes).map(([m, n]) => `<li><a href="${enlaceMarca(m)}">${escapar(m)}<span>${n}</span></a></li>`).join('')}
+    <li><a class="menu-movil__todas" href="/catalogo">Ver todo el catálogo</a></li>`;
+}
+
+// Lista completa de marcas, de la A a la Z, con buscador.
+let dialogoMarcas;
+export function abrirMarcas() {
+  if (!dialogoMarcas) {
+    dialogoMarcas = document.createElement('dialog');
+    dialogoMarcas.className = 'marcas-dialogo';
+    dialogoMarcas.setAttribute('aria-labelledby', 'marcas-titulo');
+    const lista = marcasConCuenta([...perfumesPorId.values()]).sort((a, b) => a[0].localeCompare(b[0], 'es'));
+    dialogoMarcas.innerHTML = `
+      <div class="marcas-dialogo__panel">
+        <header class="marcas-dialogo__cabecera">
+          <h2 class="marcas-dialogo__titulo" id="marcas-titulo">Todas las marcas</h2>
+          <button class="boton-icono" type="button" data-cerrar aria-label="Cerrar">${icono('cerrar')}</button>
+        </header>
+        <label class="marcas-dialogo__buscar">${icono('buscar')}<input type="search" placeholder="Buscar marca" aria-label="Buscar marca" autocomplete="off" enterkeyhint="search"></label>
+        <ul class="marcas-dialogo__lista">${lista.map(([m, n]) => `<li data-texto="${escapar(normalizar(m))}"><a href="${enlaceMarca(m)}">${escapar(m)}<span>${n}</span></a></li>`).join('')}</ul>
+      </div>`;
+    document.body.append(dialogoMarcas);
+    dialogoMarcas.querySelector('input').addEventListener('input', (e) => {
+      const q = normalizar(e.target.value.trim());
+      dialogoMarcas.querySelectorAll('[data-texto]').forEach((li) => { li.hidden = q && !li.dataset.texto.includes(q); });
+    });
+    dialogoMarcas.addEventListener('click', (e) => {
+      if (e.target === dialogoMarcas || e.target.closest('[data-cerrar]')) dialogoMarcas.close();
+    });
+  }
+  dialogoMarcas.showModal();
+  if (!esCelular()) dialogoMarcas.querySelector('input').focus();
+}
+
+/* ---------- Cuenta del cliente ---------- */
+
+const BENEFICIOS = [
+  ['etiqueta', 'Ofertas exclusivas', 'Precios especiales solo para clientes con cuenta.'],
+  ['estrella', 'Sumá puntos', '1 punto por cada dólar que comprás. Muy pronto los vas a poder canjear por descuentos y promociones.'],
+  ['corazon', 'Favoritos e historial', 'Tus favoritos y tus pedidos, guardados en cualquier celular o compu.'],
+  ['chat', 'Asesor con IA', 'Te va a ayudar a elegir tu próximo perfume.', 'Próximamente'],
+];
+
+export function beneficiosCuenta(clase = '') {
+  return `<ul class="beneficios ${clase}">${BENEFICIOS.map(([ic, titulo, texto, marca]) => `
+    <li>${icono(ic)}<div><p class="beneficios__titulo">${titulo}${marca ? ` <span class="beneficios__marca">${marca}</span>` : ''}</p><p>${texto}</p></div></li>`).join('')}</ul>`;
+}
+
+function campoContrasena(id, autocompletar) {
+  return `
+    <div class="campo">
+      <label for="${id}">Contraseña</label>
+      <div class="campo-contrasena">
+        <input id="${id}" name="contrasena" type="password" autocomplete="${autocompletar}" minlength="6" required enterkeyhint="go">
+        <button type="button" class="campo-contrasena__ver" data-ver-contrasena aria-label="Mostrar contraseña">${icono('ojo')}</button>
+      </div>
+    </div>`;
+}
+
+let dialogoCuenta;
+function montarCuenta() {
+  dialogoCuenta = document.createElement('dialog');
+  dialogoCuenta.className = 'cuenta-dialogo';
+  const wa = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent('Hola Essenze! Me olvidé la contraseña de mi cuenta.')}`;
+  dialogoCuenta.innerHTML = `
+    <div class="cuenta-dialogo__panel">
+      <button class="boton-icono cuenta-dialogo__cerrar" type="button" data-cerrar aria-label="Cerrar">${icono('cerrar')}</button>
+      <section data-modo="registro" aria-labelledby="cuenta-titulo-registro">
+        <p class="cuenta-dialogo__sobre">Essenze · Clientes</p>
+        <h2 class="cuenta-dialogo__titulo" id="cuenta-titulo-registro">Creá tu cuenta gratis</h2>
+        ${beneficiosCuenta()}
+        <form class="formulario cuenta-dialogo__form" data-form="registro" novalidate>
+          <div class="campo">
+            <label for="c-email-registro">Email</label>
+            <input id="c-email-registro" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" required enterkeyhint="next">
+          </div>
+          ${campoContrasena('c-clave-registro', 'new-password')}
+          <p class="campo__ayuda">Mínimo 6 letras o números.</p>
+          <p class="campo__error" data-error role="alert"></p>
+          <button class="boton boton--lleno boton--ancho" type="submit">Crear cuenta</button>
+        </form>
+        <p class="cuenta-dialogo__cambiar">¿Ya tenés cuenta? <button type="button" data-ir="ingreso">Ingresá</button></p>
+        <button class="cuenta-dialogo__ahora-no" type="button" data-cerrar data-ahora-no hidden>Ahora no</button>
+      </section>
+      <section data-modo="ingreso" aria-labelledby="cuenta-titulo-ingreso" hidden>
+        <p class="cuenta-dialogo__sobre">Essenze · Clientes</p>
+        <h2 class="cuenta-dialogo__titulo" id="cuenta-titulo-ingreso">Ingresá a tu cuenta</h2>
+        <form class="formulario cuenta-dialogo__form" data-form="ingreso" novalidate>
+          <div class="campo">
+            <label for="c-email-ingreso">Email</label>
+            <input id="c-email-ingreso" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" required enterkeyhint="next">
+          </div>
+          ${campoContrasena('c-clave-ingreso', 'current-password')}
+          <p class="campo__error" data-error role="alert"></p>
+          <button class="boton boton--lleno boton--ancho" type="submit">Ingresar</button>
+        </form>
+        <p class="cuenta-dialogo__cambiar">¿Te olvidaste la contraseña? <a href="${wa}" target="_blank" rel="noopener">Escribinos por WhatsApp</a> y te pasamos una nueva.</p>
+        <p class="cuenta-dialogo__cambiar">¿No tenés cuenta? <button type="button" data-ir="registro">Creala gratis</button></p>
+      </section>
+    </div>`;
+  document.body.append(dialogoCuenta);
+
+  dialogoCuenta.addEventListener('click', (e) => {
+    if (e.target === dialogoCuenta || e.target.closest('[data-cerrar]')) {
+      dialogoCuenta.close();
+      return;
+    }
+    const ir = e.target.closest('[data-ir]');
+    if (ir) mostrarModoCuenta(ir.dataset.ir);
+    const ver = e.target.closest('[data-ver-contrasena]');
+    if (ver) {
+      const input = ver.previousElementSibling;
+      const visible = input.type === 'password';
+      input.type = visible ? 'text' : 'password';
+      ver.setAttribute('aria-label', visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      ver.innerHTML = icono(visible ? 'ojoNo' : 'ojo');
+    }
+  });
+
+  dialogoCuenta.querySelectorAll('[data-form]').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const error = form.querySelector('[data-error]');
+      const boton = form.querySelector('[type="submit"]');
+      const email = form.elements.email.value.trim();
+      const contrasena = form.elements.contrasena.value;
+      error.textContent = '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+        error.textContent = 'Revisá el email: falta algo (ej. nombre@gmail.com).';
+        form.elements.email.focus();
+        return;
+      }
+      if (contrasena.length < 6) {
+        error.textContent = 'La contraseña tiene que tener al menos 6 letras o números.';
+        form.elements.contrasena.focus();
+        return;
+      }
+      boton.disabled = true;
+      boton.classList.add('es-cargando');
+      try {
+        if (form.dataset.form === 'registro') await crearCuenta(email, contrasena);
+        else await ingresar(email, contrasena);
+        dialogoCuenta.close();
+        form.reset();
+        aviso(form.dataset.form === 'registro' ? '¡Listo! Ya tenés tu cuenta' : 'Ingresaste a tu cuenta', { texto: 'Ver mi cuenta', alHacer: () => { location.href = '/cuenta'; } });
+      } catch (err) {
+        error.textContent = err.message;
+      } finally {
+        boton.disabled = false;
+        boton.classList.remove('es-cargando');
+      }
+    });
+  });
+}
+
+function mostrarModoCuenta(modo) {
+  dialogoCuenta.querySelectorAll('[data-modo]').forEach((s) => { s.hidden = s.dataset.modo !== modo; });
+  if (!esCelular()) setTimeout(() => dialogoCuenta.querySelector(`[data-modo="${modo}"] input`)?.focus(), 30);
+}
+
+// modo: 'registro' o 'ingreso'. invitacion: el cartel que aparece solo al entrar (con "Ahora no").
+export function abrirCuenta(modo = 'registro', { invitacion = false } = {}) {
+  if (!dialogoCuenta) montarCuenta();
+  dialogoCuenta.querySelector('[data-ahora-no]').hidden = !invitacion;
+  mostrarModoCuenta(modo);
+  if (!dialogoCuenta.open) dialogoCuenta.showModal();
+}
+
+// El cartel invita a crear una cuenta a los pocos segundos de entrar. Si lo cierran, vuelve recién a la semana;
+// nunca interrumpe si hay algo abierto (la bolsa, la búsqueda) ni a quien ya tiene cuenta.
+const CLAVE_INVITACION = 'essenze-invitacion-cuenta';
+function programarInvitacion(pagina) {
+  if (CONFIG.popupCuentas === false || cuentaAbierta() || pagina === 'cuenta') return;
+  let ultima = 0;
+  try { ultima = Number(localStorage.getItem(CLAVE_INVITACION)) || 0; } catch { /* sin almacenamiento */ }
+  if (Date.now() - ultima < 7 * 864e5) return;
+  setTimeout(() => {
+    if (cuentaAbierta() || document.querySelector('dialog[open]')) return;
+    try { localStorage.setItem(CLAVE_INVITACION, String(Date.now())); } catch { /* sin almacenamiento */ }
+    abrirCuenta('registro', { invitacion: true });
+  }, 6000);
+}
+
+function pintarCuenta() {
+  const c = cuentaAbierta();
+  document.querySelectorAll('[data-abrir-cuenta]').forEach((b) => {
+    b.setAttribute('aria-label', c ? 'Mi cuenta' : 'Crear cuenta o ingresar');
+    b.classList.toggle('es-activa', !!c);
+  });
+  document.querySelectorAll('[data-texto-cuenta]').forEach((el) => { el.textContent = c ? 'Mi cuenta' : 'Crear cuenta o ingresar'; });
 }
 
 /* ---------- Avisos ---------- */
@@ -268,12 +485,12 @@ function pintarContador() {
   }
 }
 
-// Si piden más unidades de las que tienen, el resto queda a pedido.
 function notaPrecios() {
   if (!(CONFIG.mostrarArs && CONFIG.cotizacion > 0)) return 'Precios en dólares estadounidenses (USD)';
-  return CONFIG.mostrarUsd ? 'Precios en dólares estadounidenses (USD). Los precios en pesos son de referencia' : 'Precios en pesos argentinos, calculados con el valor del dólar del día';
+  return CONFIG.mostrarUsd ? 'Precios en dólares estadounidenses (USD). Los precios en pesos son de referencia' : 'Precios en pesos argentinos, calculados con el valor del dólar de la semana';
 }
 
+// Si piden más unidades de las que tienen, el resto queda a pedido.
 function entregaDeLinea(l) {
   const stock = Number(l.pres.stock) || 0;
   if (stock <= 0) return 'A pedido';
@@ -281,13 +498,7 @@ function entregaDeLinea(l) {
   return `${stock} de entrega inmediata y ${l.cantidad - stock} a pedido`;
 }
 
-function numeroPedido() {
-  const d = new Date(Date.now() - 3 * 3600_000).toISOString().slice(2, 10).replace(/-/g, '');
-  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const azar = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => abc[b % abc.length]).join('');
-  return `E-${d}-${azar}`;
-}
-
+// numero: el que dio el servidor (1001, 1002…); null si no se pudo guardar el pedido.
 export function mensajePedido(datos, lineas, numero) {
   const total = lineas.reduce((n, l) => n + l.subtotal, 0);
   const ars = precioArs(total);
@@ -295,7 +506,7 @@ export function mensajePedido(datos, lineas, numero) {
   return [
     `Hola Essenze! Quiero hacer este pedido:`,
     ``,
-    `*Pedido ${numero}*`,
+    numero ? `*Pedido #${numero}*` : `*Pedido nuevo*`,
     ...renglones,
     ``,
     `*Total: ${precio(total)}*${ars ? ` (${ars})` : ''}`,
@@ -332,16 +543,26 @@ function validar(form) {
   return !primero;
 }
 
-// Guarda el pedido en el panel sin demorar la apertura de WhatsApp.
-function guardarPedido(numero, datos, lineas) {
+// Guarda el pedido en el panel y devuelve su número (1001, 1002…). Sin conexión o si tarda demasiado,
+// devuelve null: el pedido igual llega por WhatsApp, sin número.
+async function guardarPedido(datos, lineas) {
+  const control = new AbortController();
+  const espera = setTimeout(() => control.abort(), 8000);
   try {
-    fetch('/api/pedidos', {
+    const r = await fetch('/api/pedidos', {
       method: 'POST',
       keepalive: true,
+      signal: control.signal,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero, ...datos, sitio: datos.sitio || '', items: lineas.map((l) => ({ id: l.p.id, ml: l.ml, cantidad: l.cantidad })) }),
-    }).catch(() => {});
-  } catch { /* sin conexión: el pedido igual llega por WhatsApp */ }
+      body: JSON.stringify({ ...datos, sitio: datos.sitio || '', items: lineas.map((l) => ({ id: l.p.id, ml: l.ml, cantidad: l.cantidad })) }),
+    });
+    const d = await r.json();
+    return r.ok && d.numero ? d.numero : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(espera);
+  }
 }
 
 function montarBolsa() {
@@ -384,7 +605,7 @@ function montarBolsa() {
           </div>
           <div class="campo">
             <label for="f-email">Email</label>
-            <input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" enterkeyhint="next" required value="${escapar(cliente.email)}" aria-describedby="e-email">
+            <input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" enterkeyhint="next" required value="${escapar(cliente.email || cuentaAbierta()?.email || '')}" aria-describedby="e-email">
             <p class="campo__error" id="e-email" data-error="email"></p>
           </div>
           <div class="campo">
@@ -414,7 +635,7 @@ function montarBolsa() {
         <div class="enviado__personaje">${videoPersonaje()}</div>
         <p class="enviado__titulo">Abrimos WhatsApp con tu pedido</p>
         <p>Solo falta que toques <strong>enviar</strong> en WhatsApp. Te respondemos para coordinar el pago y la entrega.</p>
-        <p class="enviado__numero">Pedido <span data-numero></span></p>
+        <p class="enviado__numero" data-numero-linea>Pedido <span data-numero></span></p>
         <a class="enlace-dorado" data-reabrir target="_blank" rel="noopener">¿No se abrió? Tocá acá</a>
         <div class="enviado__acciones">
           <button class="boton boton--lleno boton--ancho" type="button" data-vaciar data-foco>Ya lo envié · vaciar bolsa</button>
@@ -460,10 +681,11 @@ function montarBolsa() {
     cerrarBolsa();
   });
 
-  bolsa.querySelector('form').addEventListener('submit', (e) => {
+  bolsa.querySelector('form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget;
-    if (!validar(form)) return;
+    const enviar = form.querySelector('[type="submit"]');
+    if (enviar.disabled || !validar(form)) return;
     const lineas = lineasBolsa();
     if (!lineas.length) {
       mostrarPaso('items');
@@ -471,13 +693,24 @@ function montarBolsa() {
     }
     const datos = Object.fromEntries(['nombre', 'email', 'telefono', 'comentario', 'sitio'].map((k) => [k, form.elements[k].value.trim()]));
     carrito.recordarCliente(datos);
-    const numero = numeroPedido();
+    // La pestaña de WhatsApp se abre en el mismo toque (si no, el navegador la bloquea) y recibe
+    // la dirección cuando el servidor devuelve el número del pedido.
+    const ventana = window.open('', '_blank');
+    if (ventana) {
+      ventana.opener = null;
+      ventana.document.title = 'Abriendo WhatsApp…';
+      ventana.document.body.innerHTML = '<p style="font:16px system-ui,sans-serif;padding:24px">Abriendo WhatsApp…</p>';
+    }
+    enviar.disabled = true;
+    enviar.classList.add('es-cargando');
+    const numero = await guardarPedido(datos, lineas);
+    enviar.disabled = false;
+    enviar.classList.remove('es-cargando');
     const url = enlaceWhatsapp(mensajePedido(datos, lineas, numero));
-    bolsa.querySelector('[data-numero]').textContent = numero;
+    if (ventana && !ventana.closed) ventana.location.href = url;
+    bolsa.querySelector('[data-numero]').textContent = numero ? `#${numero}` : '';
+    bolsa.querySelector('[data-numero-linea]').hidden = !numero;
     bolsa.querySelector('[data-reabrir]').href = url;
-    // WhatsApp se abre en el mismo toque (si no, el navegador lo bloquea); el guardado va en paralelo.
-    window.open(url, '_blank', 'noopener');
-    guardarPedido(numero, datos, lineas);
     mostrarPaso('enviado');
     // El cocodrilo festeja el pedido dibujando el logo.
     reproducir(bolsa.querySelector('.enviado__personaje video'));
@@ -574,6 +807,7 @@ export function tarjeta(p, { revelar = false } = {}) {
         <h3 class="tarjeta__nombre">${escapar(p.nombre)}</h3>
         <p class="tarjeta__detalle">${[p.concentracion, pres.some((x) => x.ml) ? `${pres.map((x) => x.ml || '—').join(' / ')} ml` : ''].filter(Boolean).map(escapar).join(' · ')}</p>
         ${hayInmediata(p) ? '<p class="entrega-inmediata">Entrega inmediata</p>' : ''}
+        ${tieneExclusiva(p) ? '<p class="precio-exclusivo">Precio exclusivo con tu cuenta</p>' : descuentoCuenta(p) ? `<p class="precio-exclusivo precio-exclusivo--invita">Con tu cuenta: −${descuentoCuenta(p)}%</p>` : ''}
       </div>
     </a>
     ${botonFavorito(p, 'tarjeta__favorito')}
@@ -799,6 +1033,28 @@ function montarBusqueda() {
   });
 }
 
+/* ---------- Actualización en vivo ---------- */
+
+// Como en el sistema de REFIRE: si en el panel cambian un precio, el stock, una oferta o el dólar, la página
+// abierta se actualiza sola en unos segundos, sin recargar. Pregunta cada 20 segundos, solo con la pestaña a la vista.
+const CADA = 20_000;
+let revisando = false;
+async function revisarCambios() {
+  if (document.hidden || revisando) return;
+  revisando = true;
+  try {
+    const { v } = await (await fetch('/api/vivo', { cache: 'no-store' })).json();
+    if (v && CONFIG.version && v !== CONFIG.version) await refrescarCatalogo();
+  } catch { /* sin conexión: se vuelve a probar en la próxima vuelta */ } finally {
+    revisando = false;
+  }
+}
+
+function vigilarCambios() {
+  setInterval(revisarCambios, CADA);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarCambios(); });
+}
+
 /* ---------- Arranque común ---------- */
 
 // Una transición entre páginas que el navegador saltea (pestaña en segundo plano) no es un error.
@@ -825,6 +1081,13 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
     botonMenu.innerHTML = icono(abrir ? 'cerrar' : 'menu');
   });
   menu.addEventListener('click', (e) => {
+    const desplegar = e.target.closest('[data-desplegar-marcas]');
+    if (desplegar) {
+      const abrir = desplegar.getAttribute('aria-expanded') !== 'true';
+      desplegar.setAttribute('aria-expanded', String(abrir));
+      menu.querySelector('[data-menu-marcas]').hidden = !abrir;
+      return;
+    }
     if (e.target.closest('a')) {
       menu.hidden = true;
       botonMenu.setAttribute('aria-expanded', 'false');
@@ -868,11 +1131,37 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
   reproducirAlVer(pieEl.querySelector('.pie__personaje'));
   perfumesPorId = new Map(datos.perfumes.map((p) => [p.id, p]));
   depurarFavoritos((id) => perfumesPorId.has(id));
+  pintarMarcasMenu(datos.perfumes);
   document.addEventListener('carrito:cambio', () => {
     pintarContador();
     pintarBolsa();
   });
   pintarContador();
   pintarBolsa();
+
+  // Cambió el catálogo (desde el panel, o al entrar o salir de la cuenta): bolsa, pie y menú al día.
+  document.addEventListener('catalogo:cambio', (e) => {
+    perfumesPorId = new Map(e.detail.perfumes.map((p) => [p.id, p]));
+    pieEl.innerHTML = pie();
+    pintarMarcasMenu(e.detail.perfumes);
+    pintarContador();
+    pintarBolsa();
+  });
+
+  // Cuenta del cliente: botón de la cabecera, cartel de invitación y sesión al día.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-abrir-cuenta]')) return;
+    if (cuentaAbierta()) location.href = '/cuenta';
+    else abrirCuenta();
+  });
+  document.addEventListener('cuenta:cambio', () => {
+    pintarCuenta();
+    const email = bolsa.querySelector('#f-email');
+    if (email && !email.value && cuentaAbierta()) email.value = cuentaAbierta().email;
+  });
+  pintarCuenta();
+  if (cuentaAbierta()) traerCuenta().catch(() => {});
+  programarInvitacion(pagina);
+  vigilarCambios();
   return datos;
 }

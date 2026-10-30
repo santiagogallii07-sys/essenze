@@ -48,6 +48,12 @@ export function quitarFavorito(id) {
   avisar();
 }
 
+// Al ingresar a la cuenta: los favoritos guardados en la cuenta se juntan con los de este navegador.
+export function reemplazarFavoritos(lista) {
+  ids = [...new Set(lista.filter((id) => typeof id === 'string'))].slice(0, MAXIMO);
+  avisar();
+}
+
 // Saca los perfumes que ya no están en el catálogo (borrados u ocultos).
 export function depurarFavoritos(existe) {
   const vigentes = ids.filter(existe);

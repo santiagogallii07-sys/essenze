@@ -1,6 +1,7 @@
 // Protege todo /api/admin/*: exige sesión y, en los cambios, el encabezado propio del panel.
 import { error } from '../../../lib/util.js';
 import { sesionValida } from '../../../lib/sesion.js';
+import { asegurarEsquema } from '../../../lib/esquema.js';
 
 export async function onRequest(context) {
   const { request, env, next } = context;
@@ -16,6 +17,8 @@ export async function onRequest(context) {
   } catch (e) {
     return error(500, e.message);
   }
+  // Tablas y columnas nuevas (numeración de pedidos, cuentas de clientes): se crean solas la primera vez.
+  await asegurarEsquema(env);
   const respuesta = await next();
   respuesta.headers.set('Cache-Control', 'no-store');
   return respuesta;

@@ -1,5 +1,9 @@
 // Llamadas a la API del panel. Toda respuesta 401 dispara el aviso de sesión vencida.
 
+// Momento del último cambio hecho desde este panel: así un cambio propio no hace repintar la pantalla dos veces.
+let ultimoCambioPropio = 0;
+export const cambioPropioReciente = () => Date.now() - ultimoCambioPropio < 8000;
+
 export class ErrorApi extends Error {
   constructor(mensaje, estado) {
     super(mensaje);
@@ -27,6 +31,7 @@ export async function api(ruta, { metodo = 'GET', datos, cuerpo, encabezados = {
   const tipo = res.headers.get('Content-Type') || '';
   const respuesta = tipo.includes('json') ? await res.json().catch(() => ({})) : await res.blob();
   if (!res.ok) throw new ErrorApi(respuesta?.error || `Error ${res.status}`, res.status);
+  if (metodo !== 'GET') ultimoCambioPropio = Date.now();
   return respuesta;
 }
 

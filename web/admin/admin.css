@@ -889,3 +889,248 @@ details.tarjeta-admin summary::-webkit-details-marker { display: none; }
 /* Stock rápido desde la lista de perfumes */
 .en-stock { color: var(--oro-claro); }
 .filas-stock { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-top: 16px; }
+
+/* =====================================================================
+   Panel en blanco y negro: fondo claro, texto negro, letra Inter más grande
+   y botones bien marcados. La tienda sigue con su estilo negro y oro.
+   (El ingreso queda oscuro: el cocodrilo del logo está sobre fondo negro.)
+   ===================================================================== */
+
+:root {
+  --negro: #ffffff;          /* fondo de campos y texto sobre botones llenos */
+  --fondo: #f4f4f3;
+  --superficie: #ffffff;
+  --superficie-2: #f2f2f1;
+  --superficie-3: #e8e8e6;
+  --linea: rgba(0, 0, 0, 0.1);
+  --linea-media: rgba(0, 0, 0, 0.2);
+  --linea-fuerte: rgba(0, 0, 0, 0.45);
+  --oro: #111111;            /* el acento pasa a ser negro */
+  --oro-claro: #000000;
+  --texto: #111111;
+  --texto-2: #3d3d3d;
+  --texto-3: #6a6a6a;
+  --verde: #1d7a3e;
+  --rojo: #c0392b;
+  --azul: #1f5fa8;
+  --display: 'Inter', system-ui, sans-serif;
+  --cuerpo: 'Inter', system-ui, sans-serif;
+  color-scheme: light;
+}
+
+html { scrollbar-color: #c4c4c4 var(--fondo); }
+body { font: 400 16px/1.5 var(--cuerpo); }
+:focus-visible { outline: 2px solid #111; outline-offset: 2px; }
+
+/* Botones: negro lleno o contorno negro, sin mayúsculas forzadas */
+.boton { border-width: 1.5px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; min-height: 48px; }
+.boton--chico { min-height: 40px; font-size: 0.88rem; }
+.boton--lleno { background: #111; border-color: #111; color: #fff; }
+.boton--contorno { color: #111; border-color: #111; }
+.boton--suave { border-color: var(--linea-media); color: #111; background: #fff; }
+.boton.es-cargando::after { border-color: #fff transparent #fff transparent; }
+.boton--contorno.es-cargando::after, .boton--suave.es-cargando::after { border-color: #111 transparent #111 transparent; }
+.boton-icono { border-radius: 8px; color: #3d3d3d; }
+@media (hover: hover) and (pointer: fine) {
+  .boton--lleno:hover:not(:disabled) { background: #333; border-color: #333; }
+  .boton--contorno:hover:not(:disabled), .boton--suave:hover:not(:disabled) { background: #f0f0ef; }
+  .boton--peligro:hover { background: #fdecea; }
+  .boton-icono:hover { color: #000; background: #ececeb; }
+  .lateral-admin__enlace:hover { background: #ececeb; color: #000; }
+  .item-perfume:hover { border-color: #111; }
+  .chip-admin:hover:not([aria-pressed='true']) { border-color: #111; color: #111; }
+  .accion-rapida:hover { border-color: #111; }
+  a.cifra:hover { background: #fafafa; }
+}
+
+/* Ingreso: se mantiene oscuro con el cocodrilo */
+.ingreso {
+  --negro: #0b0a09; --superficie: #151310; --linea-media: rgba(201, 163, 92, 0.28);
+  --oro: #c9a35c; --oro-claro: #e3c27e; --texto: #ede7db; --texto-2: #b5ac9c; --texto-3: #8f8778;
+  color: var(--texto);
+  background: radial-gradient(60% 50% at 50% 30%, rgba(201, 163, 92, 0.1), transparent 70%), #0b0a09;
+}
+.ingreso .boton--lleno { background: var(--oro); border-color: var(--oro); color: #0b0a09; }
+
+/* Estructura */
+.barra-admin { background: rgba(255, 255, 255, 0.94); border-bottom-color: var(--linea-media); }
+.barra-admin__titulo { font-weight: 700; font-size: 1.15rem; letter-spacing: -0.01em; text-transform: none; }
+.pestanas-admin { background: rgba(255, 255, 255, 0.97); border-top-color: var(--linea-media); }
+.pestana-admin { font-size: 0.74rem; letter-spacing: 0; color: #6a6a6a; font-weight: 500; }
+.pestana-admin[aria-current='page'] { color: #000; font-weight: 700; }
+.burbuja { background: #c0392b; color: #fff; }
+@media (min-width: 900px) {
+  .lateral-admin { background: #fff; border-right-color: var(--linea-media); }
+  .lateral-admin__marca strong { font-weight: 700; letter-spacing: 0.2em; }
+  .lateral-admin__enlace { font-size: 0.98rem; border-radius: 8px; color: #3d3d3d; }
+  .lateral-admin__enlace[aria-current='page'] { background: #111; color: #fff; box-shadow: none; font-weight: 600; }
+  .barra-admin__titulo { font-size: 1.35rem; }
+}
+.lateral-admin__marca img { filter: grayscale(1) brightness(0.2); }
+
+/* Bloques y cifras */
+.tarjeta-admin { border-color: var(--linea-media); border-radius: 12px; }
+.tarjeta-admin__titulo { font-size: 0.95rem; font-weight: 700; letter-spacing: 0; text-transform: none; color: #111; }
+.tarjeta-admin__titulo a, .tarjeta-admin__titulo button { font-size: 0.88rem; color: #111; text-decoration: underline; text-underline-offset: 3px; font-weight: 500; }
+.cifras { background: var(--linea-media); border-color: var(--linea-media); border-radius: 12px; }
+.cifra__rotulo { font-size: 0.8rem; letter-spacing: 0; text-transform: none; color: #555; font-weight: 600; }
+.cifra__valor { font-size: clamp(1.1rem, 4.8vw, 1.55rem); font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+.cifra__nota { font-size: 0.82rem; color: #6a6a6a; }
+@media (min-width: 900px) { .cifras--seis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.saludo__titulo { font-weight: 700; font-size: 1.6rem; letter-spacing: -0.02em; }
+.accion-rapida { border-color: var(--linea-media); border-radius: 10px; font-weight: 600; }
+.accion-rapida .icono { color: #111; }
+.fila-admin__sub, .vacio-admin__detalle { color: #6a6a6a; }
+.vacio-admin .icono { color: #111; }
+.cargando::after { background: #111; }
+.barras__barra--egreso, .leyenda span + span::before { background: #bdbdbd; }
+.barra-h__pista { background: #ececeb; }
+
+/* Formularios */
+.campo > span, .campo__rotulo { font-size: 0.86rem; letter-spacing: 0; text-transform: none; color: #222; font-weight: 600; }
+.campo__ayuda { font-size: 0.84rem; color: #6a6a6a; }
+.campo input, .campo select, .campo textarea, .entrada { background: #fff; border: 1.5px solid #c8c8c6; border-radius: 8px; }
+.campo input:focus, .campo select:focus, .campo textarea:focus, .entrada:focus { border-color: #111; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08); }
+.campo select, select.entrada {
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center / 16px;
+}
+.interruptor__texto { font-weight: 600; }
+.interruptor__texto small { font-weight: 400; font-size: 0.84rem; color: #6a6a6a; }
+.interruptor__pista { border: 0; background: #cfcfcd; }
+.interruptor__pista::after { background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+.interruptor input:checked + .interruptor__pista { background: #111; }
+.interruptor input:checked + .interruptor__pista::after { background: #fff; }
+.segmentado { border-radius: 8px; border-color: #c8c8c6; }
+.segmentado span { color: #3d3d3d; font-weight: 500; }
+.segmentado input:checked + span { background: #111; color: #fff; }
+.casilla span { border-color: #c8c8c6; color: #3d3d3d; }
+.casilla input:checked + span { background: #111; border-color: #111; color: #fff; }
+
+/* Buscadores y filtros */
+.buscador-admin .icono { color: #111; }
+.chip-admin { border: 1.5px solid #c8c8c6; font-size: 0.9rem; font-weight: 500; color: #222; min-height: 40px; }
+.chip-admin span { color: #6a6a6a; }
+.chip-admin[aria-pressed='true'] { background: #111; border-color: #111; color: #fff; }
+.chip-admin[aria-pressed='true'] span { color: rgba(255, 255, 255, 0.75); }
+.contador-resultados { color: #6a6a6a; }
+
+/* Listas de perfumes y fotos: fondo claro */
+.item-perfume { border-color: var(--linea-media); border-radius: 10px; }
+.mini { background: #f2f2f1; border-radius: 6px; }
+.item-perfume__marca { color: #6a6a6a; letter-spacing: 0.04em; font-weight: 600; }
+.item-perfume__nombre { font-weight: 600; }
+.item-perfume__acciones .es-activo { color: #000; }
+.escena-foto, .encuadre { background: radial-gradient(70% 70% at 50% 40%, #ffffff, #ececea 80%); border-color: var(--linea-media); }
+.escena-foto img { filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.18)); }
+.escena-foto__estado { background: rgba(255, 255, 255, 0.92); color: #333; }
+.tira-360 img { background: #f2f2f1; }
+.fila-tamano, .linea-venta { background: #f7f7f6; border-color: var(--linea-media); border-radius: 10px; }
+.barra-guardar { background: rgba(255, 255, 255, 0.97); border-top-color: var(--linea-media); }
+.resultados-busqueda { background: #fff; border-color: #c8c8c6; border-radius: 0 0 8px 8px; }
+
+/* Pedidos */
+.tarjeta-pedido { border-color: var(--linea-media); border-radius: 12px; }
+.tarjeta-pedido__numero { font-weight: 800; font-size: 1.05rem; letter-spacing: 0; }
+.tarjeta-pedido__total { font-weight: 700; }
+.tarjeta-pedido__cliente > span:first-child { font-weight: 600; }
+.tarjeta-pedido__items { color: #333; }
+.tarjeta-pedido__notas { background: #f4f4f3; border-left: 3px solid #111; }
+.estado { font-weight: 600; font-size: 0.78rem; letter-spacing: 0; }
+.estado--nuevo { color: #b45309; }
+.estado--cancelado { color: #6a6a6a; }
+.origen { letter-spacing: 0.02em; }
+
+/* Caja, ofertas e importar */
+.selector-mes__nombre { font-weight: 700; letter-spacing: 0; }
+.oferta-admin, .zona-archivo { border-color: var(--linea-media); border-radius: 12px; }
+.oferta-admin__vista, .banner-vista { background: #f2f2f1; }
+.oferta-admin__vista--personaje { background: #0b0a09; }
+.oferta-admin__etiqueta { color: #6a6a6a; letter-spacing: 0.04em; }
+.oferta-admin__titulo { font-weight: 700; letter-spacing: 0; text-transform: none; }
+.zona-archivo .icono, .pasos-import li::before, .acceso-lote > .icono { color: #111; }
+.zona-archivo.es-arrastrando { background: #f0f0ef; border-color: #111; }
+.progreso__barra { background: #ececeb; }
+.tabla-previa th { letter-spacing: 0; text-transform: none; font-weight: 600; color: #555; }
+.enlace-suelto { color: #111; }
+.etiqueta-cambio--precio { color: #b45309; }
+.comparar-fotos__lado { border-color: var(--linea-media); }
+.comparar-fotos__lado--nueva { border-color: #111; }
+
+/* Hojas y avisos */
+.hoja-admin::backdrop { background: rgba(0, 0, 0, 0.45); }
+.hoja-admin__panel { border-top-color: var(--linea-media); }
+.hoja-admin__titulo { font-weight: 700; font-size: 1.1rem; letter-spacing: 0; text-transform: none; }
+.hoja-admin__asa { background: #c8c8c6; }
+@media (min-width: 900px) { .hoja-admin__panel { border-color: var(--linea-media); border-radius: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18); } }
+.menu-mas .icono { color: #111; }
+.aviso { background: #111; color: #fff; border-color: #111; border-radius: 10px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25); }
+.aviso .icono { color: #7ee29b; }
+.aviso--error { background: #7f1d1d; border-color: #7f1d1d; }
+.aviso--error .icono { color: #fff; }
+.usd { color: #6a6a6a; }
+.en-stock { color: #1d7a3e; font-weight: 600; }
+
+/* Buscador general del inicio del panel */
+.buscador-general { position: relative; margin-bottom: 14px; }
+.buscador-general__resultados {
+  position: absolute;
+  z-index: 15;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  display: grid;
+  max-height: min(60dvh, 460px);
+  overflow-y: auto;
+  padding: 6px;
+  background: #fff;
+  border: 1.5px solid #c8c8c6;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+}
+.buscador-general__grupo { padding: 8px 8px 4px; font-size: 0.78rem; font-weight: 700; color: #6a6a6a; }
+.buscador-general__fila { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 8px; border-radius: 8px; }
+.buscador-general__fila .mini { width: 38px; height: 44px; flex: none; }
+.buscador-general__fila > .icono { width: 22px; height: 22px; margin: 0 8px; }
+.buscador-general__fila > span:not(.estado) { display: grid; flex: 1; min-width: 0; }
+.buscador-general__fila strong { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.buscador-general__fila small { font-size: 0.82rem; color: #6a6a6a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.buscador-general__vacio { padding: 12px; color: #6a6a6a; }
+@media (hover: hover) and (pointer: fine) { .buscador-general__fila:hover { background: #f2f2f1; } }
+
+/* Ajustes: dólar de la semana */
+.dolar { display: grid; gap: 12px; margin: 4px 0; padding: 14px; border: 1.5px solid var(--linea-media); border-radius: 10px; min-width: 0; }
+.dolar legend { padding: 0 6px; }
+.dolar .boton { justify-self: start; }
+
+/* Editor: 6 datos por tamaño (con el precio exclusivo para clientes con cuenta) */
+.fila-tamano .campo:nth-child(5) { grid-column: auto; }
+.fila-tamano .campo:nth-child(odd) { grid-column: 1; }
+.fila-tamano .campo:nth-child(even) { grid-column: 2; }
+@media (min-width: 900px) {
+  .fila-tamano { grid-template-columns: 80px repeat(5, minmax(0, 1fr)) 44px; }
+  .fila-tamano .campo:nth-child(odd), .fila-tamano .campo:nth-child(even) { grid-column: auto; }
+}
+
+/* Clientes con cuenta */
+.lista-clientes { display: grid; gap: 8px; }
+.cliente-admin { display: grid; gap: 10px; padding: 14px; background: var(--superficie); border: 1px solid var(--linea-media); border-radius: 12px; }
+.cliente-admin__texto { display: grid; min-width: 0; }
+.cliente-admin__texto strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cliente-admin__texto small { font-size: 0.84rem; color: var(--texto-3); }
+.cliente-admin__datos { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.9rem; color: var(--texto-2); }
+.cliente-admin__datos strong { color: var(--texto); font-weight: 700; }
+.cliente-admin__acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cliente-admin__acciones .boton-icono { margin-left: auto; }
+@media (min-width: 900px) {
+  .cliente-admin { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; align-items: center; }
+}
+
+/* Banners a la medida nueva (16:11, la mitad de arriba del inicio) y referencias para la IA */
+.banner-vista--mitad { aspect-ratio: 16 / 11; max-width: 420px; }
+.oferta-admin--banner .oferta-admin__vista { aspect-ratio: 16 / 11; }
+.oferta-admin--banner { grid-template-columns: 120px minmax(0, 1fr); }
+.referencias-ia { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.referencia-ia { display: grid; gap: 6px; padding: 6px; border: 1px solid var(--linea-media); border-radius: 8px; font-size: 0.78rem; color: var(--texto-2); }
+.referencia-ia img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #0b0a09; border-radius: 6px; }
+.referencia-ia span { display: flex; align-items: center; gap: 4px; }
+.referencia-ia .icono { width: 14px; height: 14px; }

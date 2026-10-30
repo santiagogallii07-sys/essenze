@@ -1,9 +1,13 @@
+// Inicio: arriba, mitad "Elegí tu estilo" (las barras por tipo) y mitad la cartelera (el cocodrilo y los banners);
+// después marcas y filas de perfumes (más vendidos, destacados, ofertas y entrega inmediata).
+// Si cambia el catálogo (desde el panel), las filas se vuelven a pintar solas.
 import { TIPOS, CONFIG } from './config.js';
-import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, observarRevelado, garantias } from './interfaz.js';
-import { enOferta, normalizar } from './datos.js';
+import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, abrirMarcas, marcasConCuenta, observarRevelado } from './interfaz.js';
+import { enOferta, hayInmediata, verEntregaInmediata, normalizar } from './datos.js';
 import { icono } from './iconos.js';
 import { videoPersonaje, reproducir, puedeAnimar } from './personaje.js';
 
+const POR_FILA = 10;
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 // Textos del banner del cocodrilo si el panel todavía no los cargó (se editan en Panel → Ofertas).
@@ -55,11 +59,10 @@ function montarCartelera(raiz, ofertas, porId) {
     // Banner hecho con IA: la imagen completa es la diapositiva y todo el banner es un enlace.
     if (o.formato === 'banner' && o.imagen) {
       return `
-    <article class="cartel cartel--banner ${o.imagen_movil ? 'cartel--con-movil' : ''} ${i === 0 ? 'es-activo' : ''}" aria-roledescription="diapositiva" aria-label="${i + 1} de ${lista.length}" ${i === 0 ? '' : 'aria-hidden="true" inert'}>
+    <article class="cartel cartel--banner ${i === 0 ? 'es-activo' : ''}" aria-roledescription="diapositiva" aria-label="${i + 1} de ${lista.length}" ${i === 0 ? '' : 'aria-hidden="true" inert'}>
       <${Titulo} class="solo-lector">${escapar(o.titulo)}</${Titulo}>
       <a class="cartel__banner" href="${escapar(o.enlace)}">
         <picture>
-          ${o.imagen_movil ? `<source media="(max-width: 860px)" srcset="/foto/${escapar(o.imagen_movil)}">` : ''}
           <img src="/foto/${escapar(o.imagen)}" alt="${escapar([o.titulo, o.texto].filter(Boolean).join('. '))}" ${i ? 'loading="lazy"' : 'fetchpriority="high"'} draggable="false">
         </picture>
       </a>
@@ -229,10 +232,10 @@ async function elegirMuestras(lista) {
 
 function montarTipos(raiz, perfumes) {
   const entradas = Object.entries(TIPOS);
-  raiz.innerHTML = entradas.map(([clave, nombre]) => {
+  raiz.innerHTML = entradas.map(([clave, nombre], i) => {
     const lista = perfumes.filter((p) => p.tipo === clave);
     return `
-    <li class="revelar">
+    <li style="--i:${i}">
       <a class="tipo" href="/catalogo?tipo=${clave}">
         <span class="tipo__nombre">${nombre}</span>
         <span class="tipo__cuenta">${lista.length} ${lista.length === 1 ? 'perfume' : 'perfumes'}</span>
@@ -255,20 +258,16 @@ function montarTipos(raiz, perfumes) {
   observador.observe(raiz);
 }
 
-// Cinta de marcas que se desplaza sola; se duplica para que el giro no tenga corte.
+// Marcas: un solo botón que abre la lista completa (de la A a la Z, con buscador).
+// Detrás del texto pasan los nombres de las marcas, despacito (la cinta que tenía el inicio antes).
 function montarMarcas(raiz, perfumes) {
-  const cuenta = new Map();
-  perfumes.forEach((p) => cuenta.set(p.marca, (cuenta.get(p.marca) || 0) + 1));
-  const marcas = [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 28).map(([m]) => m);
-  if (marcas.length < 4) {
-    raiz.hidden = true;
-    return;
-  }
-  const items = marcas.map((m) => `<li><a href="/catalogo?marca=${encodeURIComponent(m)}">${escapar(m)}</a></li>`).join('');
-  raiz.innerHTML = `
-    <ul class="cinta__pista">${items}</ul>
-    <ul class="cinta__pista" aria-hidden="true">${marcas.map((m) => `<li><a href="/catalogo?marca=${encodeURIComponent(m)}" tabindex="-1">${escapar(m)}</a></li>`).join('')}</ul>`;
-  raiz.style.setProperty('--duracion-cinta', `${marcas.length * 3.2}s`);
+  const marcas = marcasConCuenta(perfumes);
+  raiz.closest('section').hidden = marcas.length < 2;
+  raiz.textContent = `${marcas.length} marcas`;
+  const cinta = document.querySelector('[data-cinta-marcas]');
+  const nombres = marcas.slice(0, 24).map(([m]) => `<span>${escapar(m)}</span>`).join('');
+  cinta.innerHTML = `<span class="boton-marcas__pista">${nombres}</span><span class="boton-marcas__pista">${nombres}</span>`;
+  cinta.style.setProperty('--duracion-cinta', `${Math.min(24, marcas.length) * 2.8}s`);
 }
 
 function montarAcordes(raiz, perfumes) {
@@ -280,7 +279,7 @@ function montarAcordes(raiz, perfumes) {
     conteo.set(k, actual);
   }));
   const top = [...conteo.values()].sort((a, b) => b.n - a.n).slice(0, 12);
-  raiz.innerHTML = top.map(({ nombre, n }) => `<li class="revelar"><a class="acorde-enlace" href="/catalogo?acorde=${encodeURIComponent(nombre)}">${escapar(nombre)}<span>${n}</span></a></li>`).join('');
+  raiz.innerHTML = top.map(({ nombre, n }) => `<li><a class="acorde-enlace" href="/catalogo?acorde=${encodeURIComponent(nombre)}">${escapar(nombre)}<span>${n}</span></a></li>`).join('');
 }
 
 // Si no hay destacados elegidos en el panel, se arma una vidriera variada con foto.
@@ -298,27 +297,43 @@ function elegirDestacados(perfumes) {
   return mezcla;
 }
 
-const { perfumes, ofertas } = await iniciarPagina('inicio');
-const porId = new Map(perfumes.map((p) => [p.id, p]));
-
-montarCartelera(document.querySelector('[data-cartelera]'), ofertas, porId);
-document.querySelector('[data-garantias]').innerHTML = garantias();
-montarTipos(document.querySelector('[data-tipos]'), perfumes);
-montarMarcas(document.querySelector('[data-marcas]'), perfumes);
-montarAcordes(document.querySelector('[data-acordes]'), perfumes);
-
-const gDest = document.querySelector('[data-destacados]');
-gDest.innerHTML = elegirDestacados(perfumes).map((p) => tarjeta(p, { revelar: true })).join('');
-activarTarjetas(gDest);
-
-const enPromo = perfumes.filter((p) => enOferta(p));
-const secOfertas = document.querySelector('[data-seccion-ofertas]');
-if (enPromo.length) {
-  const gOf = document.querySelector('[data-ofertas]');
-  gOf.innerHTML = enPromo.slice(0, 8).map((p) => tarjeta(p, { revelar: true })).join('');
-  activarTarjetas(gOf);
-} else {
-  secOfertas.hidden = true;
+// Pinta una fila de tarjetas; si no hay perfumes, la sección queda oculta.
+// revelar: las tarjetas aparecen escalonadas al llegar a la pantalla (solo la primera vez que se pinta).
+function fila(selector, lista, minimo = 1, revelar = false) {
+  const raiz = document.querySelector(selector);
+  const seccion = raiz.closest('section');
+  if (lista.length < minimo) {
+    seccion.hidden = true;
+    return;
+  }
+  seccion.hidden = false;
+  raiz.innerHTML = lista.slice(0, POR_FILA).map((p) => tarjeta(p, { revelar })).join('');
 }
-document.querySelector('[data-total-perfumes]').textContent = perfumes.length;
-observarRevelado();
+
+// primera: la primera vez entra con animación; cuando se repinta por un cambio del panel, no.
+function pintar(datos, { primera = false } = {}) {
+  const { perfumes } = datos;
+  const porId = new Map(perfumes.map((p) => [p.id, p]));
+  montarTipos(document.querySelector('[data-tipos]'), perfumes);
+  montarMarcas(document.querySelector('[data-cuenta-marcas]'), perfumes);
+  montarAcordes(document.querySelector('[data-acordes]'), perfumes);
+  fila('[data-vendidos]', (datos.masVendidos || []).map((id) => porId.get(id)).filter(Boolean), 2, primera);
+  fila('[data-destacados]', elegirDestacados(perfumes), 1, primera);
+  fila('[data-ofertas]', perfumes.filter((p) => enOferta(p)), 1, primera);
+  fila('[data-inmediata]', verEntregaInmediata(perfumes) ? perfumes.filter(hayInmediata) : [], 1, primera);
+  document.querySelector('[data-total-perfumes]').textContent = perfumes.length;
+  if (primera) {
+    document.querySelector('.portada-doble').classList.add('es-entrada');
+    observarRevelado();
+  }
+}
+
+const datos = await iniciarPagina('inicio');
+montarCartelera(document.querySelector('[data-cartelera]'), datos.ofertas, new Map(datos.perfumes.map((p) => [p.id, p])));
+pintar(datos, { primera: true });
+document.querySelectorAll('[data-vendidos], [data-destacados], [data-ofertas], [data-inmediata]').forEach(activarTarjetas);
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-todas-marcas]')) abrirMarcas();
+});
+// Cambió el catálogo (precios, stock, ofertas o el dólar): se vuelve a pintar sin recargar la página.
+document.addEventListener('catalogo:cambio', (e) => pintar(e.detail));

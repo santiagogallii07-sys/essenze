@@ -6,7 +6,7 @@ import { obtenerFavoritos } from './favoritos.js';
 import { icono, iconoWhatsapp } from './iconos.js';
 
 const { perfumes } = await iniciarPagina('favoritos', { pildora: true });
-const porId = new Map(perfumes.map((p) => [p.id, p]));
+let porId = new Map(perfumes.map((p) => [p.id, p]));
 
 const comparador = document.querySelector('[data-comparador]');
 const vacio = document.querySelector('[data-vacio]');
@@ -107,4 +107,9 @@ comparador.addEventListener('click', (e) => {
 });
 
 document.addEventListener('favoritos:cambio', pintar);
+// Cambiaron precios o stock desde el panel: la comparación se actualiza sola.
+document.addEventListener('catalogo:cambio', (e) => {
+  porId = new Map(e.detail.perfumes.map((p) => [p.id, p]));
+  pintar();
+});
 pintar();
