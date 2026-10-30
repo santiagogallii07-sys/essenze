@@ -248,6 +248,10 @@ function montarCuenta() {
         ${beneficiosCuenta()}
         <form class="formulario cuenta-dialogo__form" data-form="registro" novalidate>
           <div class="campo">
+            <label for="c-nombre-registro">Nombre y apellido</label>
+            <input id="c-nombre-registro" name="nombre" autocomplete="name" autocapitalize="words" required enterkeyhint="next">
+          </div>
+          <div class="campo">
             <label for="c-email-registro">Email</label>
             <input id="c-email-registro" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" autocorrect="off" required enterkeyhint="next">
           </div>
@@ -301,7 +305,13 @@ function montarCuenta() {
       const boton = form.querySelector('[type="submit"]');
       const email = form.elements.email.value.trim();
       const contrasena = form.elements.contrasena.value;
+      const nombre = form.elements.nombre?.value.trim() ?? '';
       error.textContent = '';
+      if (form.elements.nombre && nombre.split(/\s+/).filter(Boolean).length < 2) {
+        error.textContent = 'Escribí tu nombre y apellido.';
+        form.elements.nombre.focus();
+        return;
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
         error.textContent = 'Revisá el email: falta algo (ej. nombre@gmail.com).';
         form.elements.email.focus();
@@ -315,7 +325,7 @@ function montarCuenta() {
       boton.disabled = true;
       boton.classList.add('es-cargando');
       try {
-        if (form.dataset.form === 'registro') await crearCuenta(email, contrasena);
+        if (form.dataset.form === 'registro') await crearCuenta(nombre, email, contrasena);
         else await ingresar(email, contrasena);
         dialogoCuenta.close();
         form.reset();

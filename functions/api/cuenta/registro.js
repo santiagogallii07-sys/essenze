@@ -1,4 +1,4 @@
-// POST /api/cuenta/registro {email, contrasena, nombre?} → crea la cuenta y deja la sesión abierta.
+// POST /api/cuenta/registro {nombre, email, contrasena} → crea la cuenta y deja la sesión abierta.
 import { manejar, json, error, leerJSON, texto, idAleatorio, ipDe, sentenciaCambio } from '../../../lib/util.js';
 import { asegurarEsquema } from '../../../lib/esquema.js';
 import { hashContrasena, crearSesion, emailValido } from '../../../lib/cuentas.js';
@@ -9,6 +9,8 @@ export const onRequestPost = manejar(async ({ request, env }) => {
   const d = await leerJSON(request, 5000);
   const email = texto(d.email, 160).toLowerCase();
   const contrasena = String(d.contrasena || '');
+  const nombre = texto(d.nombre, 120);
+  if (nombre.split(/\s+/).filter(Boolean).length < 2) return error(400, 'Escribí tu nombre y apellido.');
   if (!emailValido(email)) return error(400, 'Revisá el email: falta algo (ej. nombre@gmail.com).');
   if (contrasena.length < 6) return error(400, 'La contraseña tiene que tener al menos 6 letras o números.');
   if (contrasena.length > 200) return error(400, 'La contraseña es demasiado larga.');
@@ -25,10 +27,10 @@ export const onRequestPost = manejar(async ({ request, env }) => {
   const favoritos = Array.isArray(d.favoritos) ? d.favoritos.filter((x) => typeof x === 'string').slice(0, 60) : [];
   await env.DB.batch([
     env.DB.prepare('INSERT INTO clientes (id, email, nombre, clave, favoritos) VALUES (?, ?, ?, ?, ?)')
-      .bind(id, email, texto(d.nombre, 120), await hashContrasena(contrasena), JSON.stringify(favoritos)),
+      .bind(id, email, nombre, await hashContrasena(contrasena), JSON.stringify(favoritos)),
     env.DB.prepare('INSERT INTO intentos_login (ip) VALUES (?)').bind(ip),
     sentenciaCambio(env),
   ]);
   const cookie = await crearSesion(env, id, esHttps(request));
-  return json({ ok: true, cuenta: { email, nombre: texto(d.nombre, 120), puntos: 0 } }, 201, { 'Set-Cookie': cookie });
+  return json({ ok: true, cuenta: { email, nombre, puntos: 0 } }, 201, { 'Set-Cookie': cookie });
 });

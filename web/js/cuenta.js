@@ -66,8 +66,8 @@ export async function traerCuenta() {
   return d;
 }
 
-export async function crearCuenta(email, contrasena) {
-  const d = await pedir('/registro', { metodo: 'POST', datos: { email, contrasena, favoritos: obtenerFavoritos() } });
+export async function crearCuenta(nombre, email, contrasena) {
+  const d = await pedir('/registro', { metodo: 'POST', datos: { nombre, email, contrasena, favoritos: obtenerFavoritos() } });
   guardar({ email: d.cuenta.email, nombre: d.cuenta.nombre || '' });
   return d.cuenta;
 }
