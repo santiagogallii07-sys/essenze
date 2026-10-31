@@ -4,8 +4,12 @@ import { manejar, jsonCrudo, leerAjustes, hoyArgentina } from '../../lib/util.js
 import { listaJSON } from '../../lib/perfumes.js';
 import { asegurarEsquema } from '../../lib/esquema.js';
 import { actualizarDolarSiToca } from '../../lib/dolar.js';
+import { revisarEventos, eventoActivo } from '../../lib/eventos.js';
 
 export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
+  await asegurarEsquema(env);
+  // Eventos automáticos que llegaron a su fecha (empiezan o terminan solos): cambian precios y suben la versión.
+  await revisarEventos(env);
   let ajustes = await leerAjustes(env);
   // Los lunes se actualiza el dólar de la semana (una sola vez); eso sube la versión y renueva el catálogo.
   if (await actualizarDolarSiToca(env, ajustes)) ajustes = await leerAjustes(env);
@@ -44,7 +48,9 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
      GROUP BY 1 ORDER BY unidades DESC LIMIT 60`,
   ).all();
   const masVendidos = vendidos.map((v) => v.id);
-  const cuerpo = `{"ajustes":${JSON.stringify(publicos)},"ofertas":${JSON.stringify(vigentes)},"masVendidos":${JSON.stringify(masVendidos)},"perfumes":${perfumes}}`;
+  // Evento de precios en curso (Cyber Day…): su nombre arma una fila propia en el inicio.
+  const evento = await eventoActivo(env);
+  const cuerpo = `{"ajustes":${JSON.stringify(publicos)},"ofertas":${JSON.stringify(vigentes)},"evento":${JSON.stringify(evento)},"masVendidos":${JSON.stringify(masVendidos)},"perfumes":${perfumes}}`;
 
   const respuesta = jsonCrudo(cuerpo, 200, { 'Cache-Control': 'public, max-age=30' });
   waitUntil(cache.put(clave, respuesta.clone()));

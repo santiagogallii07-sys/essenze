@@ -317,6 +317,14 @@ function pintar(datos, { primera = false } = {}) {
   montarTipos(document.querySelector('[data-tipos]'), perfumes);
   montarMarcas(document.querySelector('[data-cuenta-marcas]'), perfumes);
   montarAcordes(document.querySelector('[data-acordes]'), perfumes);
+  // Evento de precios en curso: fila propia con su nombre y cuándo termina.
+  const ev = datos.evento;
+  if (ev) {
+    document.querySelector('[data-titulo-evento]').textContent = ev.nombre;
+    const [d, h] = (ev.hasta || '').split('T');
+    document.querySelector('[data-fin-evento]').textContent = d ? `Hasta el ${Number(d.split('-')[2])}/${Number(d.split('-')[1])} a las ${h} h` : 'Por tiempo limitado';
+  }
+  fila('[data-evento]', ev ? ev.ids.map((id) => porId.get(id)).filter(Boolean) : [], 1, primera);
   fila('[data-vendidos]', (datos.masVendidos || []).map((id) => porId.get(id)).filter(Boolean), 2, primera);
   fila('[data-destacados]', elegirDestacados(perfumes), 1, primera);
   fila('[data-ofertas]', perfumes.filter((p) => enOferta(p)), 1, primera);
@@ -331,7 +339,7 @@ function pintar(datos, { primera = false } = {}) {
 const datos = await iniciarPagina('inicio');
 montarCartelera(document.querySelector('[data-cartelera]'), datos.ofertas, new Map(datos.perfumes.map((p) => [p.id, p])));
 pintar(datos, { primera: true });
-document.querySelectorAll('[data-vendidos], [data-destacados], [data-ofertas], [data-inmediata]').forEach(activarTarjetas);
+document.querySelectorAll('[data-evento], [data-vendidos], [data-destacados], [data-ofertas], [data-inmediata]').forEach(activarTarjetas);
 document.addEventListener('click', (e) => {
   if (e.target.closest('[data-todas-marcas]')) abrirMarcas();
 });

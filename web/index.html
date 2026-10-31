@@ -47,6 +47,18 @@
       </button>
     </section>
 
+    <!-- Evento de precios en curso (Cyber Day…): aparece solo mientras está activo -->
+    <section class="seccion-inicio contenedor seccion-evento" aria-labelledby="t-evento" data-seccion-evento hidden>
+      <div class="seccion__cabecera">
+        <div class="seccion-evento__titulos">
+          <h2 class="titulo-seccion revelar revelar--linea" id="t-evento" data-titulo-evento></h2>
+          <p class="seccion-evento__fin" data-fin-evento></p>
+        </div>
+        <a class="enlace-dorado" href="/catalogo?oferta=1">Ver todos <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg></a>
+      </div>
+      <div class="grilla-productos grilla-productos--fila fila-inicio fila-inicio--doble" data-evento></div>
+    </section>
+
     <section class="seccion-inicio contenedor" aria-labelledby="t-vendidos" data-seccion-vendidos hidden>
       <div class="seccion__cabecera">
         <h2 class="titulo-seccion revelar revelar--linea" id="t-vendidos">Lo más vendido</h2>

@@ -10,6 +10,7 @@ const SECCIONES = [
   { id: 'pedidos', texto: 'Pedidos', icono: 'recibo', modulo: './vistas/pedidos.js' },
   { id: 'caja', texto: 'Caja', icono: 'caja', modulo: './vistas/caja.js' },
   { id: 'ofertas', texto: 'Ofertas', icono: 'etiqueta', modulo: './vistas/ofertas.js' },
+  { id: 'eventos', texto: 'Eventos', icono: 'calendario', modulo: './vistas/eventos.js' },
   { id: 'clientes', texto: 'Clientes', icono: 'usuario', modulo: './vistas/clientes.js' },
   { id: 'importar', texto: 'Importar Excel', icono: 'tabla', modulo: './vistas/importar.js' },
   { id: 'ajustes', texto: 'Ajustes', icono: 'ajustes', modulo: './vistas/ajustes.js' },
@@ -94,6 +95,7 @@ function resolver(hash) {
   let modulo = destino.modulo;
   if (destino.id === 'perfumes' && params.length) modulo = './vistas/editor.js';
   if (destino.id === 'importar' && params[0] === 'fotos') modulo = './vistas/fotos-lote.js';
+  if (destino.id === 'eventos' && params.length) modulo = './vistas/evento.js';
   return { destino, modulo, params, consulta };
 }
 
@@ -138,7 +140,7 @@ function puedeRepintar() {
   const foco = document.activeElement;
   if (foco && el.vista.contains(foco) && foco.matches('input, textarea, select')) return false; // escribiendo
   if (guardia) return false; // el editor con cambios sin guardar
-  return !/^(perfumes\/|importar)/.test(rutaActual); // el editor y la importación no se tocan
+  return !/^(perfumes\/|importar|eventos\/)/.test(rutaActual); // el editor, la importación y un evento a medio armar no se tocan
 }
 
 // Vuelve a armar la vista actual con los datos nuevos, sin el cartel de "cargando" y en el mismo lugar de la pantalla.

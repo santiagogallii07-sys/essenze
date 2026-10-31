@@ -50,6 +50,7 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
 - **Caja:** además, buscador en todos los meses (también por perfume vendido).
 - **Ofertas:** descuentos, ofertas exclusivas para clientes con cuenta (también por tamaño en el editor: "Precio con cuenta") y la cartelera. "Cargar banner" da el prompt para la IA y pide una sola imagen de 1600 × 1100 (16:11) para compu y celular; "Hacerlo con IA" en el cocodrilo da el prompt y las imágenes de referencia.
 - **Clientes:** cuentas con pedidos, puntos y favoritos; contraseña nueva y borrar cuenta.
+- **Eventos** (Cyber Day, Black Friday…): nombre, fechas, automático (empieza y termina solo) o manual. Reglas opcionales: ganancia por tramos (perfumes con costo), % de descuento (a los sin costo o a todos), ganancia mínima y precio en pesos terminado en 900. Vista previa perfume por perfume con cambios a mano. Al activarlo, el precio de antes queda tachado y el inicio muestra una fila con el nombre del evento; al terminar, los precios vuelven solos.
 - **Ajustes:** WhatsApp, ciudad, Instagram, dólar automático de los lunes (o a mano), precios en pesos y/o dólares, filtro y sección "Entrega inmediata", cartel de cuentas y copia de seguridad.
 
 ## Estructura

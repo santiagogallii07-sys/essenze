@@ -2723,3 +2723,7 @@ button, .boton, .chip, .pestana, .tamano, .tamano-rapido, .boton-circular, .acor
   .portada-doble__cartel .cartel__texto .boton { min-height: 38px; padding: 0 12px; font-size: 0.62rem; letter-spacing: 0.14em; }
   .portada-doble__cartel .cartel__sello { width: 64px; height: 64px; font-size: 0.56rem; top: 10px; right: 10px; }
 }
+
+/* Evento de precios en curso (Cyber Day…) */
+.seccion-evento__titulos { display: grid; gap: 4px; }
+.seccion-evento__fin { font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--oro); }
