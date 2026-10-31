@@ -52,6 +52,11 @@ export async function montar({ vista, app }) {
 
   function inicio() {
     vista.innerHTML = `
+      <a class="tarjeta-admin acceso-lote" href="#/importar/costos">
+        ${icono('dolar')}
+        <span class="acceso-lote__texto"><strong>Costos de proveedores</strong><small>Subí las listas de precios (Word, PDF, Excel): el costo de cada perfume se carga solo.</small></span>
+        ${icono('chevron')}
+      </a>
       <a class="tarjeta-admin acceso-lote" href="#/importar/fotos">
         ${icono('imagen')}
         <span class="acceso-lote__texto"><strong>Fotos en lote</strong><small>Subí una carpeta entera de fotos: cada una va sola a su perfume.</small></span>

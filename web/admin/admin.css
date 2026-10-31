@@ -1199,3 +1199,40 @@ form[data-form-evento] { display: grid; gap: 12px; padding-bottom: 96px; }
   .fila-evento { grid-template-columns: minmax(0, 2fr) 1fr 1fr 150px 80px; }
   .fila-evento__perfume { grid-column: auto; }
 }
+
+/* ---------- Costos de proveedores ---------- */
+.listas-costos { display: grid; gap: 8px; margin-top: 12px; }
+.lista-costo { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--linea-media); border-radius: 10px; }
+.lista-costo > .icono { flex: none; }
+.lista-costo__texto { display: grid; flex: 1; min-width: 0; }
+.lista-costo__texto strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lista-costo__texto small, .lista-costo__recargo small { font-size: 0.78rem; color: var(--texto-3); }
+.lista-costo__recargo { display: grid; gap: 2px; }
+.lista-costo__recargo .entrada { width: 100px; min-height: 38px; padding: 6px 10px; }
+.lista-costos-vacia { display: none; }
+.lista-costos { display: grid; gap: 6px; }
+.fila-costo { display: grid; grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr); gap: 6px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--linea-media); border-radius: 10px; background: var(--superficie); }
+.fila-costo.es-apagada { opacity: 0.55; }
+.fila-costo__cargar input { width: 20px; height: 20px; accent-color: #111; }
+.fila-costo__perfume { grid-column: 2 / -1; display: grid; min-width: 0; }
+.fila-costo__perfume strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fila-costo small { font-size: 0.78rem; color: var(--texto-3); }
+.fila-costo__dato { display: grid; }
+.fila-costo__dato:first-of-type { grid-column: 2; }
+.fila-costo__dato span { font-weight: 600; font-variant-numeric: tabular-nums; }
+.fila-costo__dato em { font-style: normal; font-weight: 400; font-size: 0.78rem; color: var(--texto-3); }
+.fila-costo__dato--nuevo span { color: #1d7a3e; }
+.fila-costo .es-perdida { color: #c0392b; font-weight: 600; }
+.fila-costo__origen { grid-column: 2 / -1; min-width: 0; }
+.fila-costo__origen .entrada { min-height: 38px; padding: 6px 30px 6px 10px; font-size: 0.86rem; }
+.fila-costo--sin { grid-template-columns: minmax(0, 1fr); }
+.fila-costo--sin .fila-costo__perfume { grid-column: 1; }
+.fila-costo__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.resultados-costos { max-height: 50dvh; border-top: 1px solid #c8c8c6; border-radius: 8px; margin-top: 10px; }
+.resultados-costos small { color: var(--texto-3); }
+@media (min-width: 900px) {
+  .fila-costo { grid-template-columns: 32px minmax(0, 1.4fr) 110px 170px minmax(0, 1.6fr); }
+  .fila-costo__perfume, .fila-costo__origen { grid-column: auto; }
+  .fila-costo__dato:first-of-type { grid-column: auto; }
+  .fila-costo--sin { grid-template-columns: minmax(0, 1fr) auto; }
+}

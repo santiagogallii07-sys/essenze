@@ -95,6 +95,7 @@ function resolver(hash) {
   let modulo = destino.modulo;
   if (destino.id === 'perfumes' && params.length) modulo = './vistas/editor.js';
   if (destino.id === 'importar' && params[0] === 'fotos') modulo = './vistas/fotos-lote.js';
+  if (destino.id === 'importar' && params[0] === 'costos') modulo = './vistas/costos.js';
   if (destino.id === 'eventos' && params.length) modulo = './vistas/evento.js';
   return { destino, modulo, params, consulta };
 }

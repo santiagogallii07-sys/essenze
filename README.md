@@ -46,6 +46,7 @@ Para publicarla, seguí **[GUIA-PUBLICAR.md](GUIA-PUBLICAR.md)**.
   - El costo se carga en dólares (o en pesos, eligiéndolo arriba de los perfumes) y queda en dólares como último costo del perfume: la próxima venta lo trae solo, con su equivalente en la otra moneda.
 - **Caja:** ingresos y gastos (en USD o pesos), saldo, margen, gráfico de 6 meses, gastos por categoría y planilla CSV.
 - **Ofertas:** diapositivas de la cartelera con fechas de inicio y fin, y descuentos por marca, por tipo o por búsqueda.
+- **Costos de proveedores** (Importar Excel → Costos de proveedores): se suben las listas tal como llegan (Word, PDF, Excel o CSV) y el costo de cada perfume se empareja solo (abreviaturas, colores, género, concentración y versiones). Si está en varias listas, usa el más barato. Lo dudoso se confirma a mano y todo lo confirmado queda recordado para la próxima lista. Cada carga se puede deshacer (de la más nueva a la más vieja).
 - **Importar Excel:** lee el catálogo con sus fotos y muestra qué cambia antes de guardar.
 - **Caja:** además, buscador en todos los meses (también por perfume vendido).
 - **Ofertas:** descuentos, ofertas exclusivas para clientes con cuenta (también por tamaño en el editor: "Precio con cuenta") y la cartelera. "Cargar banner" da el prompt para la IA y pide una sola imagen de 1600 × 1100 (16:11) para compu y celular; "Hacerlo con IA" en el cocodrilo da el prompt y las imágenes de referencia.
