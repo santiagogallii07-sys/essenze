@@ -170,21 +170,30 @@ function montarCartelera(raiz, ofertas, porId) {
   const seguir = () => { delete raiz.dataset.pausa; reiniciar(); };
   raiz.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && pausar());
   raiz.addEventListener('pointerleave', (e) => e.pointerType === 'mouse' && seguir());
-  raiz.addEventListener('focusin', pausar);
-  raiz.addEventListener('focusout', (e) => { if (!raiz.contains(e.relatedTarget)) seguir(); });
+  // Solo se pausa con el teclado: un toque en el celular también deja el foco puesto, y antes la cartelera quedaba trabada.
+  raiz.addEventListener('focusin', (e) => { if (e.target.matches(':focus-visible')) pausar(); });
+  raiz.addEventListener('focusout', (e) => { if (raiz.dataset.pausa && !raiz.contains(e.relatedTarget)) seguir(); });
   document.addEventListener('visibilitychange', () => (document.hidden ? pausar() : seguir()));
 
-  // Deslizar con el dedo
+  // Con el dedo: mientras está apoyado no pasa sola (así no cambia justo cuando tocan) y deslizando se cambia.
   let x0 = null;
   let y0 = null;
-  raiz.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
-  raiz.addEventListener('touchend', (e) => {
+  raiz.addEventListener('touchstart', (e) => {
+    x0 = e.touches[0].clientX;
+    y0 = e.touches[0].clientY;
+    clearTimeout(temporizador);
+  }, { passive: true });
+  const soltar = (e) => {
     if (x0 === null) return;
-    const dx = e.changedTouches[0].clientX - x0;
-    const dy = e.changedTouches[0].clientY - y0;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) ir(actual + (dx < 0 ? 1 : -1));
+    const toque = e.changedTouches?.[0];
+    const dx = toque ? toque.clientX - x0 : 0;
+    const dy = toque ? toque.clientY - y0 : 0;
     x0 = null;
-  });
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) ir(actual + (dx < 0 ? 1 : -1));
+    else reiniciar();
+  };
+  raiz.addEventListener('touchend', soltar);
+  raiz.addEventListener('touchcancel', soltar);
 
   reiniciar();
 }

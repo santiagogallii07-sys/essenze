@@ -44,7 +44,7 @@ export async function montar({ vista, app }) {
   const vinculos = { ...guardado.vinculos };
   const nuevosVinculos = {};
   let listas = [];
-  let criterio = 'barato';
+  let criterio = 'medio';
   let resultado = null;
   let filtro = 'listos';
   let busqueda = '';
@@ -63,7 +63,8 @@ export async function montar({ vista, app }) {
       <div class="listas-costos" data-listas></div>
       <div class="campo" data-opciones hidden style="margin-top:12px"><span class="campo__rotulo">Si un perfume está en varias listas</span>
         <div class="segmentado" role="radiogroup" aria-label="Si un perfume está en varias listas">
-          <label><input type="radio" name="criterio" value="barato" checked><span>Usar el más barato</span></label>
+          <label><input type="radio" name="criterio" value="medio" checked><span>El del medio</span></label>
+          <label><input type="radio" name="criterio" value="barato"><span>Usar el más barato</span></label>
           <label><input type="radio" name="criterio" value="ultimo"><span>Usar la última lista</span></label>
         </div>
       </div>

@@ -56,7 +56,7 @@ function cabecera(pagina) {
     </li>`;
   return `
   <div class="cabecera__barra contenedor">
-    <button class="boton-icono cabecera__menu" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-movil">${icono('menu')}</button>
+    <button class="boton-icono cabecera__menu" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu-movil"><span class="hamburguesa" aria-hidden="true"><span></span><span></span></span></button>
     <a class="marca" href="/" aria-label="Essenze, inicio">
       <img class="marca__simbolo" src="/img/logo-marca.png" alt="" width="46" height="44">
       <span class="marca__texto"><span class="marca__nombre">Essenze</span><span class="marca__sub">Parfum &amp; Decants</span></span>
@@ -1084,12 +1084,30 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
 
   const botonMenu = cab.querySelector('.cabecera__menu');
   const menu = cab.querySelector('.menu-movil');
-  botonMenu.addEventListener('click', () => {
-    const abrir = menu.hidden;
-    menu.hidden = !abrir;
-    botonMenu.setAttribute('aria-expanded', String(abrir));
-    botonMenu.innerHTML = icono(abrir ? 'cerrar' : 'menu');
-  });
+  // Abrir y cerrar con animación: las dos rayitas se cruzan en una X y el menú baja; al cerrar sube y recién ahí se oculta.
+  let cerrando = 0;
+  const cerrarMenu = () => {
+    if (menu.hidden) return;
+    botonMenu.setAttribute('aria-expanded', 'false');
+    botonMenu.setAttribute('aria-label', 'Abrir menú');
+    if (reducido.matches) {
+      menu.hidden = true;
+      return;
+    }
+    menu.classList.add('es-saliente');
+    cerrando = setTimeout(() => {
+      menu.hidden = true;
+      menu.classList.remove('es-saliente');
+    }, 200);
+  };
+  const abrirMenu = () => {
+    clearTimeout(cerrando);
+    menu.classList.remove('es-saliente');
+    menu.hidden = false;
+    botonMenu.setAttribute('aria-expanded', 'true');
+    botonMenu.setAttribute('aria-label', 'Cerrar menú');
+  };
+  botonMenu.addEventListener('click', () => (botonMenu.getAttribute('aria-expanded') === 'true' ? cerrarMenu() : abrirMenu()));
   menu.addEventListener('click', (e) => {
     const desplegar = e.target.closest('[data-desplegar-marcas]');
     if (desplegar) {
@@ -1098,11 +1116,7 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
       menu.querySelector('[data-menu-marcas]').hidden = !abrir;
       return;
     }
-    if (e.target.closest('a')) {
-      menu.hidden = true;
-      botonMenu.setAttribute('aria-expanded', 'false');
-      botonMenu.innerHTML = icono('menu');
-    }
+    if (e.target.closest('a')) cerrarMenu();
   });
 
   const alScroll = () => cab.classList.toggle('es-compacta', window.scrollY > 24);

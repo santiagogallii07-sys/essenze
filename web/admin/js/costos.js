@@ -302,9 +302,10 @@ export function emparejar(fila, catalogo) {
  * Junta todas las listas y arma la propuesta: para cada tamaño del catálogo, el renglón elegido y los demás como alternativas.
  * listas: [{nombre, filas, recargo (% que se suma al costo de esa lista)}]
  * vinculos: renglones ya confirmados otras veces {clave: {id, ml} | {ignorar: true}}
- * criterio: 'barato' (el costo más bajo entre los que coinciden igual de bien) o 'ultimo' (el de la última lista).
+ * criterio: 'medio' (el costo del medio entre los que coinciden igual de bien; si son 2, el más caro),
+ *   'barato' (el costo más bajo) o 'ultimo' (el de la última lista).
  */
-export function armarPropuesta(listas, catalogo, { vinculos = {}, criterio = 'barato' } = {}) {
+export function armarPropuesta(listas, catalogo, { vinculos = {}, criterio = 'medio' } = {}) {
   const porTamano = new Map();
   const sinPareja = [];
   listas.forEach((lista, orden) => {
@@ -337,7 +338,8 @@ export function armarPropuesta(listas, catalogo, { vinculos = {}, criterio = 'ba
     mejores.sort(criterio === 'ultimo'
       ? (a, b) => b.renglon.orden - a.renglon.orden || a.renglon.costo - b.renglon.costo
       : (a, b) => a.renglon.costo - b.renglon.costo);
-    const elegido = mejores[0];
+    // 'medio': ordenados de barato a caro, el del medio (con 3 el segundo, con 2 el más caro, con 1 ese).
+    const elegido = mejores[criterio === 'medio' ? Math.floor(mejores.length / 2) : 0];
     // Dos renglones distintos de la misma lista igual de parecidos (ej. Ana Abiyedh Coral y Scarlet): se elige a mano.
     const ambiguo = !elegido.recordado && new Set(mejores.filter((x) => x.renglon.orden === elegido.renglon.orden).map((x) => x.renglon.clave)).size > 1;
     const actual = t.perfume.presentaciones.find((x) => x.ml === t.ml)?.costo ?? null;
