@@ -2656,3 +2656,70 @@ button, .boton, .chip, .pestana, .tamano, .tamano-rapido, .boton-circular, .acor
 @media (max-width: 370px) {
   .boton-marcas__cuenta { display: none; }
 }
+
+/* Cartelera del inicio: sin la barrita de abajo; solo dos flechas redondas a los costados del banner */
+.portada-doble__cartel .cartelera__puntos { display: none; }
+.portada-doble__cartel .cartelera__controles {
+  inset: 0;
+  bottom: auto;
+  height: 100%;
+  padding: 0 10px;
+  pointer-events: none;
+}
+.portada-doble__cartel .cartelera__flechas { width: 100%; justify-content: space-between; gap: 0; margin: 0; }
+.portada-doble__cartel .cartelera__flechas .boton-icono {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--linea-fuerte);
+  border-radius: 50%;
+  background: rgba(11, 10, 9, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--oro-claro);
+  pointer-events: auto;
+  transition: opacity 250ms ease, transform 250ms var(--ease-out), background-color 200ms ease, color 200ms ease;
+}
+.portada-doble__cartel .cartelera__flechas .icono { width: 18px; height: 18px; }
+.portada-doble__cartel .cartelera__flechas .boton-icono:active { transform: scale(0.94); }
+/* Ya no hace falta lugar abajo para la barrita */
+.portada-doble__cartel .cartel--banner,
+.portada-doble__cartel .cartel--personaje { padding-bottom: 0; }
+.portada-doble__cartel .cartel:not(.cartel--banner):not(.cartel--personaje) { padding-bottom: 18px; }
+/* En la compu aparecen al pasar el mouse por el banner; en el celular quedan siempre, más chicas */
+@media (hover: hover) and (pointer: fine) {
+  .portada-doble__cartel .cartelera__flechas .boton-icono { opacity: 0; }
+  .portada-doble__cartel:hover .cartelera__flechas .boton-icono,
+  .portada-doble__cartel:focus-within .cartelera__flechas .boton-icono { opacity: 1; }
+  .portada-doble__cartel .cartelera__flechas .boton-icono:hover { background: var(--oro); color: var(--negro); border-color: var(--oro); }
+}
+@media (max-width: 860px) {
+  .portada-doble__cartel .cartelera__controles { padding: 0 6px; }
+  .portada-doble__cartel .cartelera__flechas .boton-icono { width: 34px; height: 34px; }
+  .portada-doble__cartel .cartelera__flechas .icono { width: 16px; height: 16px; }
+}
+/* Que las flechas no tapen el texto de las diapositivas */
+.portada-doble__cartel .cartel:not(.cartel--banner):not(.cartel--personaje) { padding-inline: 60px; }
+.portada-doble__cartel .banner-personaje__texto { padding-left: max(8%, 56px); }
+@media (max-width: 860px) {
+  .portada-doble__cartel .cartel:not(.cartel--banner):not(.cartel--personaje) { padding-inline: 46px; }
+  .portada-doble__cartel .banner-personaje__texto { padding-inline: 44px; }
+}
+/* Celular: las diapositivas armadas (texto + frasco) del mismo tamaño que el banner del cocodrilo */
+@media (max-width: 860px) {
+  .portada-doble__cartel .cartel:not(.cartel--banner):not(.cartel--personaje) {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    grid-template-rows: none;
+    align-items: center;
+    aspect-ratio: 5 / 4;
+    padding-block: 12px;
+  }
+  .portada-doble__cartel .cartel__escena { order: 0; height: 100%; min-height: 0; --base: 10px; }
+  .portada-doble__cartel .cartel__pedestal { --alto: 24px; width: 90%; }
+  .portada-doble__cartel .cartel__frasco, .portada-doble__cartel .cartel__frasco--foto { width: 80%; margin-bottom: calc(var(--base) + 22px); }
+  .portada-doble__cartel .cartel__frasco--foto .foto { max-height: 150px; }
+  .portada-doble__cartel .cartel__texto { padding: 0; gap: 10px; }
+  .portada-doble__cartel .cartel__titulo { font-size: clamp(1.05rem, 5.4vw, 1.4rem); letter-spacing: 0.08em; }
+  .portada-doble__cartel .cartel__bajada { font-size: 0.8rem; }
+  .portada-doble__cartel .cartel__texto .boton { min-height: 38px; padding: 0 12px; font-size: 0.62rem; letter-spacing: 0.14em; }
+  .portada-doble__cartel .cartel__sello { width: 64px; height: 64px; font-size: 0.56rem; top: 10px; right: 10px; }
+}
