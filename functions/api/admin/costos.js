@@ -14,15 +14,37 @@ async function ejecutar(env, sentencias) {
   for (let i = 0; i < sentencias.length; i += 100) await env.DB.batch(sentencias.slice(i, i + 100));
 }
 
-export const onRequestGet = manejar(async ({ env }) => {
+export const onRequestGet = manejar(async ({ request, env }) => {
+  // ?listas=id → los renglones leídos en esa carga, para volver a abrir la revisión.
+  const id = new URL(request.url).searchParams.get('listas');
+  if (id) {
+    const fila = await env.DB.prepare('SELECT listas FROM costos_cargas WHERE id = ?').bind(id).first();
+    if (!fila?.listas) return error(404, 'Esa carga no guardó las listas.');
+    return json({ listas: JSON.parse(fila.listas) });
+  }
   const { results } = await env.DB.prepare('SELECT clave, perfume, ml, ignorar FROM costos_vinculos').all();
   const vinculos = Object.fromEntries(results.map((r) => [r.clave, r.ignorar ? { ignorar: true } : { id: r.perfume, ml: r.ml }]));
-  const { results: cargas } = await env.DB.prepare('SELECT id, fecha, archivos, tamanos, deshecha FROM costos_cargas ORDER BY fecha DESC, rowid DESC LIMIT 6').all();
-  return json({ vinculos, cargas: cargas.map((c) => ({ ...c, archivos: JSON.parse(c.archivos || '[]'), deshecha: !!c.deshecha })) });
+  const { results: cargas } = await env.DB.prepare(
+    'SELECT id, fecha, archivos, tamanos, deshecha, length(listas) > 2 AS revisable FROM costos_cargas ORDER BY fecha DESC, rowid DESC LIMIT 6',
+  ).all();
+  return json({ vinculos, cargas: cargas.map((c) => ({ ...c, archivos: JSON.parse(c.archivos || '[]'), deshecha: !!c.deshecha, revisable: !!c.revisable })) });
 });
 
+// Solo lo necesario de cada renglón (las listas pueden tener miles).
+const limpiarListas = (listas) => (Array.isArray(listas) ? listas.slice(0, 20) : []).map((l) => ({
+  nombre: texto(l.nombre, 120),
+  archivo: texto(l.archivo, 120),
+  recargo: numero(l.recargo, 0),
+  filas: (Array.isArray(l.filas) ? l.filas.slice(0, 10000) : []).map((f) => ({
+    codigo: texto(f.codigo, 40),
+    descripcion: texto(f.descripcion, 300),
+    referencia: texto(f.referencia, 40),
+    costo: numero(f.costo, 0),
+  })),
+}));
+
 export const onRequestPost = manejar(async ({ request, env }) => {
-  const d = await leerJSON(request, 2_000_000);
+  const d = await leerJSON(request, 4_000_000);
   const cambios = Array.isArray(d.cambios) ? d.cambios.slice(0, 5000) : [];
   const vinculos = Array.isArray(d.vinculos) ? d.vinculos.slice(0, 10000) : [];
   if (!cambios.length && !vinculos.length) return error(400, 'No hay costos para cargar.');
@@ -68,8 +90,8 @@ export const onRequestPost = manejar(async ({ request, env }) => {
   for (const v of limpios) sentencias.push(guardarVinculo(env, v));
 
   const archivos = Array.isArray(d.archivos) ? d.archivos.map((a) => texto(a, 120)).slice(0, 20) : [];
-  sentencias.push(env.DB.prepare('INSERT INTO costos_cargas (id, archivos, tamanos, costos, vinculos) VALUES (?, ?, ?, ?, ?)')
-    .bind(idAleatorio(10), JSON.stringify(archivos), costosAntes.length, JSON.stringify(costosAntes), JSON.stringify(vinculosAntes)));
+  sentencias.push(env.DB.prepare('INSERT INTO costos_cargas (id, archivos, tamanos, costos, vinculos, listas) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(idAleatorio(10), JSON.stringify(archivos), costosAntes.length, JSON.stringify(costosAntes), JSON.stringify(vinculosAntes), JSON.stringify(limpiarListas(d.listas))));
   sentencias.push(sentenciaVersion(env));
   await ejecutar(env, sentencias);
   return json({ ok: true, tamanos: costosAntes.length, vinculos: limpios.length });

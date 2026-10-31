@@ -44,6 +44,7 @@ export async function montar({ vista, app }) {
   const vinculos = { ...guardado.vinculos };
   const nuevosVinculos = {};
   let listas = [];
+  let revisando = null; // carga anterior abierta para revisar (sus listas, sin volver a subir los archivos)
   let criterio = 'medio';
   let resultado = null;
   let filtro = 'listos';
@@ -81,12 +82,14 @@ export async function montar({ vista, app }) {
             <span class="fila-admin__titulo">${fechaHora(c.fecha)} · ${c.tamanos} ${c.tamanos === 1 ? 'costo' : 'costos'}${c.deshecha ? ' · <em>deshecha</em>' : ''}</span>
             <span class="fila-admin__sub">${c.archivos.length ? c.archivos.map(escapar).join(', ') : 'Sin archivos'}</span>
           </span>
+          ${c.revisable && !c.deshecha ? `<button class="boton boton--suave boton--chico" type="button" data-revisar="${escapar(c.id)}">${icono('buscar')} Revisar</button>` : ''}
           ${deshacible ? `<button class="boton boton--peligro boton--chico" type="button" data-deshacer="${escapar(c.id)}">${icono('girar')} Deshacer</button>` : ''}
         </li>`;
       }).join('')}</ul>
     </section>` : ''}
     <section class="tarjeta-admin" data-resultado hidden>
       <h2 class="tarjeta-admin__titulo">2 · Revisá y cargá</h2>
+      <p class="campo__ayuda" data-revisando hidden style="margin-bottom:12px"></p>
       <div class="cifras" data-cifras></div>
       <div class="herramientas-admin" style="margin-top:12px">
         <label class="buscador-admin">${icono('buscar')}<input class="entrada" type="search" placeholder="Buscar perfume o renglón" data-buscar></label>
@@ -108,7 +111,9 @@ export async function montar({ vista, app }) {
       const previa = decision.get(p.clave);
       const candidato = previa && p.candidatos.includes(previa.candidato) ? previa.candidato
         : p.candidatos.find((c) => c.renglon.clave === previa?.candidato?.renglon.clave) || p.elegido;
-      decision.set(p.clave, { cargar: previa ? previa.cargar : p.seguro, candidato });
+      // Los que ya tienen ese mismo costo no se marcan (al revisar una carga anterior, ya están cargados).
+      const igual = p.actual !== null && Math.abs(p.actual - candidato.renglon.costo) < 0.005;
+      decision.set(p.clave, { cargar: previa ? previa.cargar : p.seguro && !igual, candidato });
     }
     pintar();
   }
@@ -195,7 +200,33 @@ export async function montar({ vista, app }) {
     $('[data-guardar]').textContent = `Cargar ${aCargar.length} costos`;
   }
 
+  // Abre una carga anterior con las mismas listas: se ven las pestañas y se sigue vinculando lo que faltó.
+  async function abrirCarga(c) {
+    const r = await api(`/costos?listas=${encodeURIComponent(c.id)}`);
+    listas = r.listas;
+    revisando = c;
+    decision.clear();
+    filtro = 'revisar';
+    mostrados = POR_TANDA;
+    const nota = $('[data-revisando]');
+    nota.hidden = false;
+    nota.innerHTML = `Revisando la carga del <strong>${fechaHora(c.fecha)}</strong> · Vinculá lo que falte y tocá <strong>Cargar</strong> para guardarlo. Si subís listas nuevas, se empieza de cero con esas.`;
+    pintarListas();
+    calcular();
+    // Se abre la primera pestaña que tenga algo: primero lo dudoso, después lo que no tiene perfume.
+    if (!resultado.propuestas.some((p) => !p.seguro)) {
+      filtro = resultado.sinPareja.length ? 'sin' : 'listos';
+      pintar();
+    }
+  }
+
   async function agregarArchivos(archivos) {
+    if (revisando) {
+      listas = [];
+      revisando = null;
+      decision.clear();
+      $('[data-revisando]').hidden = true;
+    }
     for (const archivo of archivos) {
       try {
         const filas = await leerLista(archivo);
@@ -267,6 +298,16 @@ export async function montar({ vista, app }) {
     pintar();
   }, 200));
   vista.addEventListener('click', async (e) => {
+    const revisar = e.target.closest('[data-revisar]');
+    if (revisar) {
+      try {
+        await abrirCarga(guardado.cargas.find((x) => x.id === revisar.dataset.revisar));
+        $('[data-resultado]').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        avisoError(err);
+      }
+      return;
+    }
     const deshacer = e.target.closest('[data-deshacer]');
     if (deshacer) {
       const c = guardado.cargas.find((x) => x.id === deshacer.dataset.deshacer);
@@ -320,15 +361,35 @@ export async function montar({ vista, app }) {
       ...elegidas.map((p) => ({ clave: decision.get(p.clave).candidato.renglon.clave, id: p.perfume.id, ml: p.ml, descripcion: decision.get(p.clave).candidato.renglon.descripcion })),
       ...Object.entries(nuevosVinculos).filter(([, v]) => v.ignorar).map(([clave, v]) => ({ clave, ignorar: true, descripcion: v.descripcion })),
     ];
+    // Los vinculados a mano se recuerdan aunque no se cargue su costo esta vez.
+    const usados = new Set(recordar.map((v) => v.clave));
+    for (const [clave, v] of Object.entries(nuevosVinculos)) {
+      if (!v.ignorar && !usados.has(clave)) recordar.push({ clave, id: v.id, ml: v.ml, descripcion: v.descripcion });
+    }
     try {
-      const r = await api('/costos', { metodo: 'POST', datos: { cambios, vinculos: recordar, archivos: listas.map((l) => l.archivo) } });
+      const r = await api('/costos', {
+        metodo: 'POST',
+        datos: {
+          cambios,
+          vinculos: recordar,
+          archivos: listas.map((l) => l.archivo),
+          // Se guardan los renglones leídos para poder volver a abrir esta revisión más tarde.
+          listas: listas.map(({ nombre, archivo, recargo, filas }) => ({ nombre, archivo, recargo, filas })),
+        },
+      });
       olvidarPerfumes();
       aviso(`Listo: ${r.tamanos} costos cargados`);
+      // Se vuelve a abrir la pantalla: queda abierta la carga recién guardada para seguir revisando.
       app.ir('/importar');
+      setTimeout(() => app.ir('/importar/costos'), 50);
     } catch (err) {
       avisoError(err);
     }
     return undefined;
   }));
+
+  // Al entrar se abre sola la última carga (si guardó sus listas), así se puede seguir revisando.
+  const ultima = guardado.cargas.find((c) => !c.deshecha);
+  if (ultima?.revisable) await abrirCarga(ultima).catch(() => {});
   return undefined;
 }
