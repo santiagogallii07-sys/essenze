@@ -25,18 +25,25 @@ function escenaOferta(o, p, i) {
   return '';
 }
 
-function montarCartelera(raiz, ofertas, porId) {
+function montarCartelera(raiz, ofertas, porId, evento) {
   // Las ofertas salen en orden al azar en cada visita, y la bienvenida con el cocodrilo se mezcla entre ellas
   // (nunca primera, salvo que no haya ofertas cargadas).
-  const mezcladas = [...ofertas];
-  for (let i = mezcladas.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [mezcladas[i], mezcladas[j]] = [mezcladas[j], mezcladas[i]];
-  }
+  // Los banners que llevan al evento salen primero mientras está activo, y no salen cuando no hay evento.
+  const delEvento = (o) => /[?&]evento=1\b/.test(o.enlace || '');
+  const mezclar = (l) => {
+    for (let i = l.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [l[i], l[j]] = [l[j], l[i]];
+    }
+    return l;
+  };
+  const primeros = evento ? mezclar(ofertas.filter(delEvento)) : [];
+  const mezcladas = [...primeros, ...mezclar(ofertas.filter((o) => !delEvento(o)))];
   const personaje = { ...PERSONAJE, ...CONFIG.personaje, personaje: true };
   // Apagado en el panel, no sale (salvo que no haya ninguna oferta: la cartelera nunca queda vacía).
   const conCocodrilo = personaje.activo || !mezcladas.length;
-  const lugar = mezcladas.length ? 1 + Math.floor(Math.random() * mezcladas.length) : 0;
+  const desde = Math.max(1, primeros.length);
+  const lugar = mezcladas.length ? desde + Math.floor(Math.random() * (mezcladas.length - desde + 1)) : 0;
   const lista = conCocodrilo ? [...mezcladas.slice(0, lugar), personaje, ...mezcladas.slice(lugar)] : mezcladas;
   const diapositivas = lista.map((o, i) => {
     const p = porId.get(o.perfume);
@@ -346,7 +353,7 @@ function pintar(datos, { primera = false } = {}) {
 }
 
 const datos = await iniciarPagina('inicio');
-montarCartelera(document.querySelector('[data-cartelera]'), datos.ofertas, new Map(datos.perfumes.map((p) => [p.id, p])));
+montarCartelera(document.querySelector('[data-cartelera]'), datos.ofertas, new Map(datos.perfumes.map((p) => [p.id, p])), datos.evento);
 pintar(datos, { primera: true });
 document.querySelectorAll('[data-evento], [data-vendidos], [data-destacados], [data-ofertas], [data-inmediata]').forEach(activarTarjetas);
 document.addEventListener('click', (e) => {

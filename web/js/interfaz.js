@@ -9,7 +9,7 @@ import * as carrito from './carrito.js';
 import { obtenerFavoritos, esFavorito, alternarFavorito, depurarFavoritos } from './favoritos.js';
 import { cuentaAbierta, crearCuenta, ingresar, traerCuenta } from './cuenta.js';
 import {
-  obtenerCatalogo, precio, precioArs, precioDesde, hayInmediata, inmediata, enOferta, descuentoMaximo,
+  obtenerCatalogo, precio, precioArs, precioDesde, hayInmediata, inmediata, mostrarDescuento, descuentoMaximo, eventoActual,
   presentacionesOrdenadas, enlacePerfume, MAXIMO_POR_LINEA, textoMl, normalizar, textoBuscable,
   descuentoCuenta, tieneExclusiva, refrescarCatalogo,
 } from './datos.js';
@@ -92,7 +92,7 @@ function pie() {
     </div>
     <div>
       <h2 class="pie__titulo">Catálogo</h2>
-      <ul class="pie__lista">${tipos}<li><a href="/catalogo?oferta=1">Ofertas</a></li></ul>
+      <ul class="pie__lista">${eventoActual() ? `<li><a href="${ENLACE_EVENTO}">${escapar(eventoActual().nombre)}</a></li>` : ''}${tipos}<li><a href="/catalogo?oferta=1">Ofertas</a></li></ul>
     </div>
     <div>
       <h2 class="pie__titulo">Contacto</h2>
@@ -177,6 +177,18 @@ function pintarMarcasMenu(perfumes) {
   if (!ul) return;
   ul.innerHTML = `${marcasConCuenta(perfumes).map(([m, n]) => `<li><a href="${enlaceMarca(m)}">${escapar(m)}<span>${n}</span></a></li>`).join('')}
     <li><a class="menu-movil__todas" href="/catalogo">Ver todo el catálogo</a></li>`;
+}
+
+// Evento en curso (Cyber Day…): primera pestaña del menú, con su nombre. Se saca sola cuando termina.
+export const ENLACE_EVENTO = '/catalogo?evento=1';
+function pintarEventoNav() {
+  document.querySelectorAll('[data-nav-evento]').forEach((li) => li.remove());
+  const ev = eventoActual();
+  if (!ev) return;
+  const actual = location.pathname.startsWith('/catalogo') && new URLSearchParams(location.search).get('evento') === '1';
+  for (const ul of document.querySelectorAll('.cabecera__nav > ul, .menu-movil > ul')) {
+    ul.insertAdjacentHTML('afterbegin', `<li data-nav-evento><a class="nav-evento" href="${ENLACE_EVENTO}" ${actual ? 'aria-current="page"' : ''}><span class="nav-evento__punto" aria-hidden="true"></span>${escapar(ev.nombre)}</a></li>`);
+  }
 }
 
 // Lista completa de marcas, de la A a la Z, con buscador.
@@ -800,11 +812,9 @@ export function agregarABolsa(p, ml, cantidad = 1, origen = null) {
 
 export function tarjeta(p, { revelar = false } = {}) {
   const pres = presentacionesOrdenadas(p);
-  const oferta = enOferta(p);
-  const desc = descuentoMaximo(p);
   const masBarato = pres.reduce((a, b) => (b.precio < a.precio ? b : a));
   const unico = pres.length === 1;
-  const sello = oferta ? `<span class="sello">−${desc}%</span>` : '';
+  const sello = mostrarDescuento(p) ? `<span class="sello">−${descuentoMaximo(p)}%</span>` : '';
   const tamanos = pres.map((x) => `<button type="button" class="tamano-rapido" data-ml="${x.ml}"><span>${textoMl(x.ml)}${inmediata(x) ? '<small class="tamano-rapido__entrega">Entrega inmediata</small>' : ''}</span><span>${precio(x.precio)}</span></button>`).join('');
   const ars = precioArs(precioDesde(p));
 
@@ -1156,6 +1166,7 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
   perfumesPorId = new Map(datos.perfumes.map((p) => [p.id, p]));
   depurarFavoritos((id) => perfumesPorId.has(id));
   pintarMarcasMenu(datos.perfumes);
+  pintarEventoNav();
   document.addEventListener('carrito:cambio', () => {
     pintarContador();
     pintarBolsa();
@@ -1168,6 +1179,7 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
     perfumesPorId = new Map(e.detail.perfumes.map((p) => [p.id, p]));
     pieEl.innerHTML = pie();
     pintarMarcasMenu(e.detail.perfumes);
+    pintarEventoNav();
     pintarContador();
     pintarBolsa();
   });

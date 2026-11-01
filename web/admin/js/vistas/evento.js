@@ -49,6 +49,14 @@ export async function montar({ vista, params, app }) {
       ${ev.estado === 'activo' ? `<button class="boton boton--peligro boton--chico" type="button" data-terminar>${icono('cerrar')} Terminar ahora</button>` : ''}
     </section>
 
+    <section class="tarjeta-admin">
+      <h2 class="tarjeta-admin__titulo">En la tienda</h2>
+      <p class="campo__ayuda" style="margin-bottom:10px">Mientras está activo, el evento sale primero en el menú con su nombre y tiene su propia página (no se mezcla con Ofertas).
+        Para un banner que lleve ahí, en <a href="#/ofertas">Ofertas → Cartelera</a> elegí "Lleva a: el evento"; sale primero mientras el evento esté activo.</p>
+      <label class="interruptor"><span class="interruptor__texto">Mostrar el % de descuento<small>Apagado: solo se ve el precio de antes tachado y el precio nuevo, sin el cartel con el %. Se puede cambiar aunque esté activo.</small></span>
+        <input type="checkbox" data-mostrar-porcentaje ${config.mostrarPorcentaje ? 'checked' : ''}><span class="interruptor__pista"></span></label>
+    </section>
+
     <form data-form-evento>
       <fieldset class="evento-campos" ${enCurso ? 'disabled' : ''}>
         <section class="tarjeta-admin">
@@ -144,8 +152,21 @@ export async function montar({ vista, params, app }) {
       },
       manuales: config.manuales,
       redondeo: f.redondeo.checked,
+      mostrarPorcentaje: config.mostrarPorcentaje,
     };
   }
+
+  vista.querySelector('[data-mostrar-porcentaje]').addEventListener('change', async (e) => {
+    const valor = e.target.checked;
+    try {
+      await api(`/eventos/${encodeURIComponent(id)}`, { metodo: 'POST', datos: { accion: 'tienda', mostrarPorcentaje: valor } });
+      config.mostrarPorcentaje = valor;
+      aviso(valor ? 'Listo: en la tienda se ve el % de descuento' : 'Listo: en la tienda se ve solo el precio de antes tachado');
+    } catch (err) {
+      e.target.checked = !valor;
+      avisoError(err);
+    }
+  });
 
   function mostrarBloques() {
     const auto = form.querySelector('[name=modo]:checked').value === 'auto';

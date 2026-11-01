@@ -145,6 +145,7 @@ export async function dialogoDescuento({ perfumes: lista, seleccion, perfume, ac
 function enlacesSugeridos(lista) {
   const marcas = [...new Set(lista.map((p) => p.marca))].sort((a, b) => a.localeCompare(b, 'es'));
   return [
+    ['/catalogo?evento=1', 'El evento (Cyber Day…): sale primero y solo mientras esté activo'],
     ['/catalogo', 'Todo el catálogo'],
     ['/catalogo?oferta=1', 'Todo lo que está en oferta'],
     ...Object.entries(TIPOS).map(([k, v]) => [`/catalogo?tipo=${k}`, v]),

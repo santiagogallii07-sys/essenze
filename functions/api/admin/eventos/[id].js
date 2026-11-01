@@ -1,8 +1,9 @@
 // GET /api/admin/eventos/:id → el evento con su configuración y las marcas para elegir
 // PUT → guarda nombre, fechas, modo y reglas (no se puede mientras está activo)
 // POST {accion: 'vista', config} → precios del evento sin guardar nada · {accion: 'activar' | 'terminar'}
+//   · {accion: 'tienda', mostrarPorcentaje} → mostrar o no el % en la tienda (también con el evento activo)
 // DELETE → borra el evento (si estaba activo, primero devuelve los precios)
-import { manejar, json, error, leerJSON, sentenciaCambio } from '../../../../lib/util.js';
+import { manejar, json, error, leerJSON, sentenciaCambio, sentenciaVersion } from '../../../../lib/util.js';
 import { limpiarEvento, limpiarConfig, vistaPrevia, activar, terminar, ahoraArgentina } from '../../../../lib/eventos.js';
 
 async function buscar(env, id) {
@@ -45,6 +46,15 @@ export const onRequestPost = manejar(async ({ params, request, env }) => {
   if (!ev) return error(404, 'No existe ese evento.');
   const d = await leerJSON(request, 300_000);
   if (d.accion === 'vista') return json({ filas: await vistaPrevia(env, limpiarConfig(d.config)) });
+  // Cómo se ve en la tienda (con o sin el %): se puede cambiar aunque el evento esté activo, no toca precios.
+  if (d.accion === 'tienda') {
+    const config = { ...limpiarConfig(JSON.parse(ev.config || '{}')), mostrarPorcentaje: d.mostrarPorcentaje !== false };
+    await env.DB.batch([
+      env.DB.prepare('UPDATE eventos SET config = ? WHERE id = ?').bind(JSON.stringify(config), ev.id),
+      sentenciaVersion(env),
+    ]);
+    return json({ ok: true });
+  }
   if (d.accion === 'activar') {
     if (enCurso(ev.estado)) return error(409, 'El evento ya está activo.');
     try {

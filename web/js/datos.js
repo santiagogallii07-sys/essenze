@@ -126,8 +126,27 @@ export function textoEntrega(x) {
   return inmediata(x) ? 'Entrega inmediata' : 'A pedido';
 }
 
+// Evento de precios en curso (Cyber Day…): {nombre, hasta, ids, porcentaje} o null.
+// Los perfumes del evento van en su propia página: no cuentan como ofertas.
+export const eventoActual = () => datosCatalogo?.evento || null;
+let idsEvento = { de: null, ids: new Set() };
+export function enEvento(p) {
+  const ev = eventoActual();
+  if (!ev) return false;
+  if (idsEvento.de !== ev) idsEvento = { de: ev, ids: new Set(ev.ids) };
+  return idsEvento.ids.has(p.id);
+}
+
+const rebajado = (p) => p.presentaciones.some((x) => x.precioAnterior && x.precioAnterior > x.precio);
+
 export function enOferta(p) {
-  return p.presentaciones.some((x) => x.precioAnterior && x.precioAnterior > x.precio);
+  return rebajado(p) && !enEvento(p);
+}
+
+// Cartel con el % en la tarjeta: en las ofertas siempre; en el evento, si lo dejaron prendido en el panel.
+export function mostrarDescuento(p) {
+  if (enEvento(p)) return eventoActual().porcentaje !== false && rebajado(p);
+  return rebajado(p);
 }
 
 export function descuentoMaximo(p) {

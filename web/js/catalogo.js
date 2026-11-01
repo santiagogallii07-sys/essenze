@@ -1,6 +1,6 @@
 import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar } from './interfaz.js';
-import { precioDesde, hayInmediata, verEntregaInmediata, enOferta, normalizar, textoBuscable } from './datos.js';
+import { precioDesde, hayInmediata, verEntregaInmediata, enOferta, enEvento, eventoActual, normalizar, textoBuscable } from './datos.js';
 import { icono } from './iconos.js';
 
 const INTENSIDAD_ACORDE = 50;
@@ -58,6 +58,7 @@ function leerEstado() {
     tipo: TIPOS[u.get('tipo')] ? u.get('tipo') : '',
     q: u.get('q') || '',
     oferta: u.get('oferta') === '1',
+    evento: u.get('evento') === '1',
     stock: conInmediata && u.get('stock') === '1',
     orden: ORDENES[u.get('orden')] ? u.get('orden') : 'relevancia',
   };
@@ -71,6 +72,7 @@ function escribirEstado(reemplazar = false) {
   const u = new URLSearchParams();
   if (estado.tipo) u.set('tipo', estado.tipo);
   GRUPOS.forEach((g) => estado[g.clave].length && u.set(g.clave, estado[g.clave].join(',')));
+  if (estado.evento) u.set('evento', '1');
   if (estado.oferta) u.set('oferta', '1');
   if (estado.stock) u.set('stock', '1');
   if (estado.q) u.set('q', estado.q);
@@ -81,6 +83,7 @@ function escribirEstado(reemplazar = false) {
 
 function cumple(p, excepto) {
   if (excepto !== 'tipo' && estado.tipo && p.tipo !== estado.tipo) return false;
+  if (estado.evento && eventoActual() && !enEvento(p)) return false;
   if (estado.oferta && !enOferta(p)) return false;
   if (estado.stock && !hayInmediata(p)) return false;
   if (estado.q) {
@@ -151,6 +154,7 @@ function pintarFiltros() {
 function pintarChips() {
   const chips = [];
   if (estado.q) chips.push({ texto: `“${estado.q}”`, quitar: () => { estado.q = ''; el.buscar.value = ''; } });
+  if (estado.evento && eventoActual()) chips.push({ texto: eventoActual().nombre, quitar: () => { estado.evento = false; } });
   if (estado.oferta) chips.push({ texto: 'Ofertas', quitar: () => { estado.oferta = false; } });
   if (estado.stock) chips.push({ texto: 'Entrega inmediata', quitar: () => { estado.stock = false; } });
   GRUPOS.forEach((g) => estado[g.clave].forEach((v) => chips.push({
@@ -181,7 +185,7 @@ function pintarChips() {
 
 function limpiarTodo() {
   const tipo = estado.tipo;
-  estado = { tipo, q: '', oferta: false, stock: false, orden: estado.orden };
+  estado = { tipo, q: '', oferta: false, evento: false, stock: false, orden: estado.orden };
   GRUPOS.forEach((g) => { estado[g.clave] = []; });
   el.buscar.value = '';
   actualizar();
@@ -196,7 +200,8 @@ function pintarResultados() {
   el.vacio.hidden = lista.length > 0;
   const texto = `${lista.length} ${lista.length === 1 ? 'perfume' : 'perfumes'}`;
   el.cuenta.forEach((c) => { c.textContent = texto; });
-  el.titulo.textContent = estado.oferta && !estado.tipo ? 'Ofertas' : estado.tipo ? TIPOS[estado.tipo] : 'Catálogo';
+  const ev = estado.evento && eventoActual();
+  el.titulo.textContent = ev && !estado.tipo ? ev.nombre : estado.oferta && !estado.tipo ? 'Ofertas' : estado.tipo ? TIPOS[estado.tipo] : 'Catálogo';
   document.title = `${el.titulo.textContent} · Essenze Parfum & Decants`;
 }
 
