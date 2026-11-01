@@ -1236,3 +1236,12 @@ form[data-form-evento] { display: grid; gap: 12px; padding-bottom: 96px; }
   .fila-costo__dato:first-of-type { grid-column: auto; }
   .fila-costo--sin { grid-template-columns: minmax(0, 1fr) auto; }
 }
+
+/* Cartelera: cuánto dura cada banner, el orden, flechas para moverlos y estrella de prioridad */
+.cartelera-ajustes { display: grid; grid-template-columns: minmax(140px, 180px) 1fr; gap: 12px; align-items: end; }
+@media (max-width: 560px) { .cartelera-ajustes { grid-template-columns: 1fr; } }
+.mover-admin { display: inline-flex; margin-right: auto; }
+.mover-admin .boton-icono:disabled { opacity: 0.25; cursor: default; }
+.boton-prioridad { margin-right: auto; opacity: 0.35; }
+.boton-prioridad[aria-pressed="true"] { opacity: 1; }
+.boton-prioridad[aria-pressed="true"] svg { fill: currentColor; }

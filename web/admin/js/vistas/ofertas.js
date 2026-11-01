@@ -249,7 +249,15 @@ async function editarOferta(oferta) {
 }
 
 // Banner animado del cocodrilo: no es una diapositiva más, se prende/apaga y se le cambian los textos.
-function tarjetaPersonaje(p) {
+function botonesMover(i, total) {
+  return `
+    <span class="mover-admin">
+      <button class="boton-icono" type="button" data-mover="-1" aria-label="Subir" ${i === 0 ? 'disabled' : ''}>${icono('arriba')}</button>
+      <button class="boton-icono" type="button" data-mover="1" aria-label="Bajar" ${i === total - 1 ? 'disabled' : ''}>${icono('abajo')}</button>
+    </span>`;
+}
+
+function tarjetaPersonaje(p, extra = '') {
   return `
     <article class="oferta-admin oferta-admin--banner ${p.activo ? '' : 'es-inactiva'}" data-personaje>
       <div class="oferta-admin__vista oferta-admin__vista--personaje"><img src="/video/cocodrilo-logo-v1.webp" alt=""><img src="/img/cocodrilo-bolsas.webp" alt=""></div>
@@ -257,9 +265,10 @@ function tarjetaPersonaje(p) {
         <span class="oferta-admin__etiqueta">Banner animado · cocodrilo</span>
         <span class="oferta-admin__titulo">${escapar(p.titulo)}</span>
         <span class="oferta-admin__sub">${escapar(p.texto)}</span>
-        <span class="oferta-admin__sub">${escapar(p.boton)} → ${escapar(p.enlace)} · nunca sale primero</span>
+        <span class="oferta-admin__sub">${escapar(p.boton)} → ${escapar(p.enlace)}</span>
       </div>
       <div class="oferta-admin__acciones">
+        ${extra}
         <label class="interruptor"><input type="checkbox" data-personaje-activo ${p.activo ? 'checked' : ''}><span class="interruptor__pista"></span><span>Activo</span></label>
         <button class="boton boton--suave boton--chico" type="button" data-cocodrilo-ia>${icono('imagen')} Hacerlo con IA</button>
         <button class="boton-icono" type="button" data-personaje-editar aria-label="Editar textos">${icono('editar')}</button>
@@ -294,7 +303,7 @@ function editarPersonaje(p) {
   return h.cerrada;
 }
 
-function tarjetaOferta(o, porId) {
+function tarjetaOferta(o, porId, extra = '') {
   const p = porId.get(o.perfume);
   const vista = o.imagen ? `<img src="/foto/${o.imagen}" alt="">` : p ? (p.imagen ? `<img src="/foto/${p.imagen}" alt="">` : frascoSVG(p, { etiqueta: false })) : icono('imagen');
   const fechas = o.desde || o.hasta ? ` · ${o.desde ? `desde ${fecha(o.desde)}` : ''} ${o.hasta ? `hasta ${fecha(o.hasta)}` : ''}` : '';
@@ -308,6 +317,7 @@ function tarjetaOferta(o, porId) {
         <span class="oferta-admin__sub">→ ${escapar(o.enlace)}${fechas}</span>
       </div>
       <div class="oferta-admin__acciones">
+        ${extra}
         <label class="interruptor"><input type="checkbox" data-activa ${o.activa ? 'checked' : ''}><span class="interruptor__pista"></span><span>Activa</span></label>
         <button class="boton-icono" type="button" data-editar aria-label="Editar">${icono('editar')}</button>
         <button class="boton-icono" type="button" data-borrar aria-label="Eliminar">${icono('basura')}</button>
@@ -328,10 +338,30 @@ export async function montar({ vista, app }) {
   app.acciones([banner, nueva]);
 
   let ofertas = [];
-  let personaje = (await api('/ajustes')).personaje;
+  const ajustes = await api('/ajustes');
+  let personaje = ajustes.personaje;
+  let cartelera = ajustes.cartelera;
   const lista = await perfumes();
   const porId = new Map(lista.map((p) => [p.id, p]));
   const enOferta = () => lista.filter((p) => p.presentaciones.some((x) => x.precioAnterior)).length;
+
+  function enOrden() {
+    const l = [...ofertas];
+    const d = cartelera.personajeDespuesDe;
+    const i = d === '' ? 0 : l.findIndex((o) => o.id === d) + 1;
+    l.splice(d === null || (d !== '' && i === 0) ? Math.min(1, l.length) : i, 0, { personaje: true });
+    return l;
+  }
+
+  async function guardarCartelera(cambios, mensaje) {
+    try {
+      cartelera = await api('/cartelera', { metodo: 'PUT', datos: { ...cartelera, ...cambios } });
+      if (mensaje) aviso(mensaje);
+    } catch (err) {
+      avisoError(err);
+    }
+    pintar();
+  }
 
   async function cargar() {
     ofertas = await api('/ofertas');
@@ -351,8 +381,25 @@ export async function montar({ vista, app }) {
       </section>
       <section class="tarjeta-admin">
         <h2 class="tarjeta-admin__titulo">Cartelera del inicio <a href="/" target="_blank" rel="noopener">Ver en la tienda</a></h2>
-        <p class="campo__ayuda" style="margin-bottom:12px">Se ve arriba a la derecha del inicio (en el celular, arriba de todo). Pasan solas en orden al azar (cambia en cada visita), 3 segundos cada una; el banner del cocodrilo dura lo que su animación y nunca sale primero. Hay dos tipos: <strong>Banner</strong> (una imagen completa hecha con IA, con el botón "Cargar banner") y <strong>Diapositiva</strong> (texto + foto de un perfume, armada por la página).</p>
-        <div data-lista>${tarjetaPersonaje(personaje)}${ofertas.map((o) => tarjetaOferta(o, porId)).join('')}</div>
+        <p class="campo__ayuda" style="margin-bottom:12px">Se ve arriba a la derecha del inicio (en el celular, arriba de todo). Hay dos tipos: <strong>Banner</strong> (una imagen completa hecha con IA, con el botón "Cargar banner") y <strong>Diapositiva</strong> (texto + foto de un perfume, armada por la página). Los que llevan al evento salen siempre primero mientras el evento está activo.</p>
+        <div class="cartelera-ajustes">
+          <label class="campo"><span>Segundos por banner</span><input class="entrada" type="number" inputmode="decimal" min="2" max="30" step="0.5" value="${cartelera.segundos}" data-segundos></label>
+          <div class="campo"><span class="campo__rotulo">Orden</span>
+            <div class="segmentado" role="radiogroup" aria-label="Orden de los banners">
+              <label><input type="radio" name="ordenCartelera" value="azar" ${cartelera.orden === 'azar' ? 'checked' : ''}><span>Al azar</span></label>
+              <label><input type="radio" name="ordenCartelera" value="lista" ${cartelera.orden === 'lista' ? 'checked' : ''}><span>En este orden</span></label>
+            </div>
+          </div>
+        </div>
+        <p class="campo__ayuda" style="margin:4px 0 12px">${cartelera.orden === 'azar'
+          ? `Cambian de orden en cada visita. Tocá la estrella de un banner para darle <strong>prioridad</strong>: los que la tienen salen siempre primero. El cocodrilo nunca sale primero y dura lo que su animación (al menos 6,5 segundos).`
+          : `Salen siempre en el orden de esta lista: movelos con las flechas (el cocodrilo también). El cocodrilo dura lo que su animación (al menos 6,5 segundos).`}</p>
+        <div data-lista>${cartelera.orden === 'lista'
+          ? enOrden().map((o, i, l) => (o.personaje ? tarjetaPersonaje(personaje, botonesMover(i, l.length)) : tarjetaOferta(o, porId, botonesMover(i, l.length)))).join('')
+          : tarjetaPersonaje(personaje) + ofertas.map((o) => {
+            const tiene = cartelera.prioridad.includes(o.id);
+            return tarjetaOferta(o, porId, `<button class="boton-icono boton-prioridad" type="button" data-prioridad aria-pressed="${tiene}" aria-label="${tiene ? 'Quitar prioridad' : 'Dar prioridad'}" title="${tiene ? 'Sale primero' : 'Dar prioridad'}">${icono('estrella')}</button>`);
+          }).join('')}</div>
       </section>`;
   }
 
@@ -378,8 +425,34 @@ export async function montar({ vista, app }) {
       }
       return;
     }
+    const mover = e.target.closest('[data-mover]');
+    if (mover) {
+      const l = enOrden();
+      const i = l.findIndex((o) => (mover.closest('[data-personaje]') ? o.personaje : o.id === mover.closest('[data-id]')?.dataset.id));
+      const j = i + Number(mover.dataset.mover);
+      if (i < 0 || j < 0 || j >= l.length) return;
+      [l[i], l[j]] = [l[j], l[i]];
+      ofertas = l.filter((o) => !o.personaje);
+      const k = l.findIndex((o) => o.personaje);
+      try {
+        await api('/ofertas', { metodo: 'PUT', datos: { orden: ofertas.map((o) => o.id) } });
+      } catch (err) {
+        avisoError(err);
+      }
+      await guardarCartelera({ personajeDespuesDe: k === 0 ? '' : l[k - 1].id });
+      vista.querySelector(`[data-lista] > :nth-child(${j + 1}) [data-mover="${mover.dataset.mover}"]`)?.focus();
+      return;
+    }
     const art = e.target.closest('[data-id]');
     if (!art) return;
+    if (e.target.closest('[data-prioridad]')) {
+      const tiene = cartelera.prioridad.includes(art.dataset.id);
+      await guardarCartelera(
+        { prioridad: tiene ? cartelera.prioridad.filter((x) => x !== art.dataset.id) : [...cartelera.prioridad, art.dataset.id] },
+        tiene ? 'Ya no tiene prioridad' : 'Listo: sale primero',
+      );
+      return;
+    }
     const o = ofertas.find((x) => x.id === art.dataset.id);
     if (e.target.closest('[data-editar]')) {
       if (await (o.formato === 'banner' ? dialogoBanner(o, enlacesSugeridos(lista)) : editarOferta(o))) cargar();
@@ -391,6 +464,14 @@ export async function montar({ vista, app }) {
     }
   });
   vista.addEventListener('change', async (e) => {
+    if (e.target.name === 'ordenCartelera') {
+      await guardarCartelera({ orden: e.target.value }, e.target.value === 'azar' ? 'Los banners pasan al azar' : 'Los banners pasan en el orden de la lista');
+      return;
+    }
+    if (e.target.matches('[data-segundos]')) {
+      await guardarCartelera({ segundos: Number(e.target.value) || 3 }, 'Duración guardada');
+      return;
+    }
     if (e.target.matches('[data-personaje-activo]')) {
       try {
         personaje = await api('/personaje', { metodo: 'PUT', datos: { ...personaje, activo: e.target.checked } });

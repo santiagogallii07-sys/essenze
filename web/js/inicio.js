@@ -25,26 +25,50 @@ function escenaOferta(o, p, i) {
   return '';
 }
 
-function montarCartelera(raiz, ofertas, porId, evento) {
-  // Las ofertas salen en orden al azar en cada visita, y la bienvenida con el cocodrilo se mezcla entre ellas
-  // (nunca primera, salvo que no haya ofertas cargadas).
-  // Los banners que llevan al evento salen primero mientras está activo, y no salen cuando no hay evento.
+// Orden de los banners según el panel (Ofertas → Cartelera → Cómo pasan):
+// - al azar: cambia en cada visita; los marcados con prioridad salen primero, y el cocodrilo nunca primero;
+// - en orden: como está la lista del panel, con el cocodrilo donde lo pusieron.
+// En los dos, los banners que llevan al evento salen primero mientras está activo (y no salen si no hay evento).
+function ordenarCartelera(ofertas, evento, cartelera) {
   const delEvento = (o) => /[?&]evento=1\b/.test(o.enlace || '');
   const mezclar = (l) => {
+    if (cartelera.orden === 'lista') return l;
     for (let i = l.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [l[i], l[j]] = [l[j], l[i]];
     }
     return l;
   };
-  const primeros = evento ? mezclar(ofertas.filter(delEvento)) : [];
-  const mezcladas = [...primeros, ...mezclar(ofertas.filter((o) => !delEvento(o)))];
+  const visibles = ofertas.filter((o) => evento || !delEvento(o));
   const personaje = { ...PERSONAJE, ...CONFIG.personaje, personaje: true };
   // Apagado en el panel, no sale (salvo que no haya ninguna oferta: la cartelera nunca queda vacía).
-  const conCocodrilo = personaje.activo || !mezcladas.length;
-  const desde = Math.max(1, primeros.length);
-  const lugar = mezcladas.length ? desde + Math.floor(Math.random() * (mezcladas.length - desde + 1)) : 0;
-  const lista = conCocodrilo ? [...mezcladas.slice(0, lugar), personaje, ...mezcladas.slice(lugar)] : mezcladas;
+  const conCocodrilo = personaje.activo || !visibles.length;
+  const primeros = mezclar(visibles.filter(delEvento));
+
+  if (cartelera.orden === 'lista') {
+    const resto = visibles.filter((o) => !delEvento(o));
+    if (conCocodrilo) {
+      const despues = cartelera.personajeDespuesDe;
+      const i = despues === '' ? 0 : resto.findIndex((o) => o.id === despues) + 1;
+      resto.splice(despues === null || (despues !== '' && i === 0) ? Math.min(1, resto.length) : i, 0, personaje);
+    }
+    return [...primeros, ...resto];
+  }
+
+  const prioridad = new Set(cartelera.prioridad);
+  const conPrioridad = mezclar(visibles.filter((o) => !delEvento(o) && prioridad.has(o.id)));
+  const resto = mezclar(visibles.filter((o) => !delEvento(o) && !prioridad.has(o.id)));
+  // El cocodrilo cae al azar entre los demás (después de los del evento y los de prioridad).
+  const delante = [...primeros, ...conPrioridad];
+  if (!conCocodrilo) return [...delante, ...resto];
+  const desde = delante.length ? 0 : Math.min(1, resto.length);
+  const lugar = desde + Math.floor(Math.random() * (resto.length - desde + 1));
+  return [...delante, ...resto.slice(0, lugar), personaje, ...resto.slice(lugar)];
+}
+
+function montarCartelera(raiz, ofertas, porId, evento) {
+  const cartelera = { segundos: 3, orden: 'azar', prioridad: [], personajeDespuesDe: null, ...CONFIG.cartelera };
+  const lista = ordenarCartelera(ofertas, evento, cartelera);
   const diapositivas = lista.map((o, i) => {
     const p = porId.get(o.perfume);
     const Titulo = i === 0 ? 'h1' : 'h2';
@@ -134,8 +158,8 @@ function montarCartelera(raiz, ofertas, porId, evento) {
   const barrido = raiz.querySelector('.cartelera__barrido');
   let actual = 0;
   let temporizador = 0;
-  const DURACION = 3000;
-  const DURACION_PERSONAJE = 6500; // lo que tarda el cocodrilo en cruzar y dibujar el logo
+  const DURACION = cartelera.segundos * 1000; // se elige en el panel
+  const DURACION_PERSONAJE = Math.max(6500, DURACION); // lo que tarda el cocodrilo en cruzar y dibujar el logo
 
   function ir(n) {
     const sig = (n + carteles.length) % carteles.length;
@@ -341,7 +365,7 @@ function pintar(datos, { primera = false } = {}) {
     document.querySelector('[data-fin-evento]').textContent = d ? `Hasta el ${Number(d.split('-')[2])}/${Number(d.split('-')[1])} a las ${h} h` : 'Por tiempo limitado';
   }
   fila('[data-evento]', ev ? ev.ids.map((id) => porId.get(id)).filter(Boolean) : [], 1, primera);
-  fila('[data-vendidos]', (datos.masVendidos || []).map((id) => porId.get(id)).filter(Boolean), 2, primera);
+  fila('[data-vendidos]', CONFIG.seccionVendidos === false ? [] : (datos.masVendidos || []).map((id) => porId.get(id)).filter(Boolean), 2, primera);
   fila('[data-destacados]', elegirDestacados(perfumes), 1, primera);
   fila('[data-ofertas]', perfumes.filter((p) => enOferta(p)), 1, primera);
   fila('[data-inmediata]', verEntregaInmediata(perfumes) ? perfumes.filter(hayInmediata) : [], 1, primera);

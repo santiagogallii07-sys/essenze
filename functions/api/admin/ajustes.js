@@ -22,6 +22,7 @@ export const onRequestPut = manejar(async ({ request, env }) => {
     mostrar_usd: d.mostrarUsd ? '1' : '0',
     filtro_inmediata: d.filtroInmediata ? '1' : '0',
     popup_cuentas: d.popupCuentas === false ? '0' : '1',
+    seccion_vendidos: d.seccionVendidos === false ? '0' : '1',
     comision_usd: String(Math.max(0, numero(d.comision, 3))),
     estilo_fotos: d.estiloFotos === 'oscuro' ? 'oscuro' : 'blanco',
     dolar_auto: dolarAuto ? '1' : '0',

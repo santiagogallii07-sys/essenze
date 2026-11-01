@@ -57,6 +57,8 @@ export async function montar({ vista, app }) {
           <input type="checkbox" name="mostrarUsd" ${a.mostrarUsd ? 'checked' : ''}><span class="interruptor__pista"></span></label>
         <label class="interruptor ancho-total"><span class="interruptor__texto">Filtro y sección "Entrega inmediata"<small>Apagalos si tienen pocos en stock. Igual se ocultan solos cuando no hay ninguno en stock.</small></span>
           <input type="checkbox" name="filtroInmediata" ${a.filtroInmediata ? 'checked' : ''}><span class="interruptor__pista"></span></label>
+        <label class="interruptor ancho-total"><span class="interruptor__texto">Sección "Los más vendidos" en el inicio<small>La fila con lo que más se vendió en los últimos 6 meses. Igual se oculta sola si todavía no hay ventas.</small></span>
+          <input type="checkbox" name="seccionVendidos" ${a.seccionVendidos ? 'checked' : ''}><span class="interruptor__pista"></span></label>
         <label class="interruptor ancho-total"><span class="interruptor__texto">Invitar a crear una cuenta al entrar<small>Un cartel con los beneficios de tener cuenta, a los pocos segundos de entrar. Si lo cierran, vuelve recién a la semana.</small></span>
           <input type="checkbox" name="popupCuentas" ${a.popupCuentas ? 'checked' : ''}><span class="interruptor__pista"></span></label>
       </div>
@@ -116,6 +118,7 @@ export async function montar({ vista, app }) {
             mostrarUsd: f.mostrarUsd.checked,
             filtroInmediata: f.filtroInmediata.checked,
             popupCuentas: f.popupCuentas.checked,
+            seccionVendidos: f.seccionVendidos.checked,
             comision: f.comision.value,
             estiloFotos: f.estiloFotos.value,
           },
