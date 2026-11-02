@@ -37,6 +37,7 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
     personaje: ajustes.personaje,
     cartelera: ajustes.cartelera,
     seccionVendidos: ajustes.seccionVendidos,
+    seccionOfertas: ajustes.seccionOfertas,
     popupCuentas: ajustes.popupCuentas,
     // Las páginas abiertas comparan esta versión con /api/vivo para saber si tienen que actualizarse.
     version: ajustes.version,

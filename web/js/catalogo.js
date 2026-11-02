@@ -1,4 +1,4 @@
-import { TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
+import { CONFIG, TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar } from './interfaz.js';
 import { precioDesde, hayInmediata, verEntregaInmediata, enOferta, enEvento, eventoActual, normalizar, textoBuscable } from './datos.js';
 import { icono } from './iconos.js';
@@ -145,7 +145,7 @@ function pintarFiltros() {
 
   el.filtros.innerHTML = `
     <div class="interruptores">
-      <label class="interruptor"><input type="checkbox" data-bandera="oferta" ${estado.oferta ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Solo ofertas</label>
+      ${CONFIG.seccionOfertas !== false || estado.oferta ? `<label class="interruptor"><input type="checkbox" data-bandera="oferta" ${estado.oferta ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Solo ofertas</label>` : ''}
       ${conInmediata ? `<label class="interruptor"><input type="checkbox" data-bandera="stock" ${estado.stock ? 'checked' : ''}><span class="interruptor__pista" aria-hidden="true"></span>Entrega inmediata</label>` : ''}
     </div>
     ${grupos}`;

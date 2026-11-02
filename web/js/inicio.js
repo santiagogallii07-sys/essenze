@@ -367,7 +367,7 @@ function pintar(datos, { primera = false } = {}) {
   fila('[data-evento]', ev ? ev.ids.map((id) => porId.get(id)).filter(Boolean) : [], 1, primera);
   fila('[data-vendidos]', CONFIG.seccionVendidos === false ? [] : (datos.masVendidos || []).map((id) => porId.get(id)).filter(Boolean), 2, primera);
   fila('[data-destacados]', elegirDestacados(perfumes), 1, primera);
-  fila('[data-ofertas]', perfumes.filter((p) => enOferta(p)), 1, primera);
+  fila('[data-ofertas]', CONFIG.seccionOfertas === false ? [] : perfumes.filter((p) => enOferta(p)), 1, primera);
   fila('[data-inmediata]', verEntregaInmediata(perfumes) ? perfumes.filter(hayInmediata) : [], 1, primera);
   document.querySelector('[data-total-perfumes]').textContent = perfumes.length;
   if (primera) {

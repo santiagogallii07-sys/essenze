@@ -45,7 +45,7 @@ const NAV = [
 ];
 
 function cabecera(pagina) {
-  const enlaces = NAV.map((n) => `<li><a href="${n.href}" ${n.id === pagina ? 'aria-current="page"' : ''}>${n.texto}</a></li>`).join('');
+  const enlaces = NAV.map((n) => `<li data-nav="${n.id}"><a href="${n.href}" ${n.id === pagina ? 'aria-current="page"' : ''}>${n.texto}</a></li>`).join('');
   // En el celular no entra un tercer ícono en la cabecera: los favoritos van en el menú.
   const favoritosMenu = `<li><a class="menu-movil__favoritos" href="/favoritos" ${pagina === 'favoritos' ? 'aria-current="page"' : ''}>${icono('corazon')}Favoritos <span data-cantidad-favoritos></span></a></li>`;
   // Marcas: se despliegan en una lista corta que se desliza (se llena cuando llega el catálogo).
@@ -92,7 +92,7 @@ function pie() {
     </div>
     <div>
       <h2 class="pie__titulo">Catálogo</h2>
-      <ul class="pie__lista">${eventoActual() ? `<li><a href="${ENLACE_EVENTO}">${escapar(eventoActual().nombre)}</a></li>` : ''}${tipos}<li><a href="/catalogo?oferta=1">Ofertas</a></li></ul>
+      <ul class="pie__lista">${eventoActual() ? `<li><a href="${ENLACE_EVENTO}">${escapar(eventoActual().nombre)}</a></li>` : ''}${tipos}${CONFIG.seccionOfertas === false ? '' : '<li><a href="/catalogo?oferta=1">Ofertas</a></li>'}</ul>
     </div>
     <div>
       <h2 class="pie__titulo">Contacto</h2>
@@ -182,6 +182,8 @@ function pintarMarcasMenu(perfumes) {
 // Evento en curso (Cyber Day…): primera pestaña del menú, con su nombre. Se saca sola cuando termina.
 export const ENLACE_EVENTO = '/catalogo?evento=1';
 function pintarEventoNav() {
+  // La pestaña "Ofertas" se puede apagar en Ajustes (con pocas ofertas queda vacía).
+  document.querySelectorAll('[data-nav="ofertas"]').forEach((li) => { li.hidden = CONFIG.seccionOfertas === false; });
   document.querySelectorAll('[data-nav-evento]').forEach((li) => li.remove());
   const ev = eventoActual();
   if (!ev) return;
