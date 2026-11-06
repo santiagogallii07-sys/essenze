@@ -9,6 +9,7 @@ const SECCIONES = [
   { id: 'perfumes', texto: 'Perfumes', icono: 'frasco', modulo: './vistas/perfumes.js' },
   { id: 'pedidos', texto: 'Pedidos', icono: 'recibo', modulo: './vistas/pedidos.js' },
   { id: 'caja', texto: 'Caja', icono: 'caja', modulo: './vistas/caja.js' },
+  { id: 'stock', texto: 'Stock', icono: 'paquete', modulo: './vistas/stock.js' },
   { id: 'deudas', texto: 'Deudas', icono: 'dolar', modulo: './vistas/deudas.js' },
   { id: 'ofertas', texto: 'Ofertas', icono: 'etiqueta', modulo: './vistas/ofertas.js' },
   { id: 'eventos', texto: 'Eventos', icono: 'calendario', modulo: './vistas/eventos.js' },

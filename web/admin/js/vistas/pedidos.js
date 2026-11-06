@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 import { icono, escapar, usd, ars, pesos, precioDoble, dolarActual, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar } from '../ui.js';
 import { iconoWhatsapp } from '/js/iconos.js';
-import { perfumesLivianos, olvidarPerfumes, buscarEn } from '../datos.js';
+import { perfumesLivianos, olvidarPerfumes, buscarEn, normalizar } from '../datos.js';
 
 const METODOS = ['Efectivo', 'Transferencia', 'Mercado Pago', 'Tarjeta', 'Dólares en efectivo', 'Otro'];
 const SIGUIENTE = { nuevo: 'confirmado', confirmado: 'cobrado', cobrado: 'entregado' };
@@ -82,12 +82,15 @@ async function dialogoVenta(pedido = null, boton = null) {
   let lista;
   let ajustes;
   let detalle;
+  let stock;
   try {
     // La lista de perfumes es liviana y queda guardada: desde la segunda venta la ventana abre al instante.
-    [lista, ajustes, detalle] = await Promise.all([
+    [lista, ajustes, detalle, stock] = await Promise.all([
       perfumesLivianos(),
       api('/ajustes'),
       editando ? api(`/pedidos/${encodeURIComponent(pedido.id)}`) : null,
+      // Perfumes fuera del catálogo que tienen en stock (pestaña Stock): también se buscan acá.
+      api('/stock').catch(() => ({ libres: [] })),
     ]);
   } catch (err) {
     avisoError(err);
@@ -119,6 +122,7 @@ async function dialogoVenta(pedido = null, boton = null) {
       marca: i.marca,
       nombre: i.nombre,
       libre: !!i.libre,
+      stockLibre: i.stockLibre,
     }))
     : [];
   const totalLineas = () => lineas.reduce((n, l) => n + (Number(l.precio) || 0) * (Number(l.cantidad) || 0), 0);
@@ -241,7 +245,7 @@ async function dialogoVenta(pedido = null, boton = null) {
   function lineaLibre(l, i) {
     return `
         <div class="linea-venta" data-i="${i}">
-          <span class="fila-admin__texto"><span class="fila-admin__titulo">Perfume escrito a mano</span><small class="cifra__nota">No está en el catálogo: no descuenta stock.</small></span>
+          <span class="fila-admin__texto"><span class="fila-admin__titulo">Perfume escrito a mano</span><small class="cifra__nota">${l.stockLibre ? 'Fuera del catálogo: se descuenta de su stock.' : 'No está en el catálogo: no descuenta stock.'}</small></span>
           <button class="boton-icono" type="button" data-quitar aria-label="Quitar">${icono('cerrar')}</button>
           <div class="linea-venta__libre">
             <label class="campo"><span>Marca</span><input data-campo="marca" maxlength="80" autocapitalize="words" value="${escapar(l.marca || '')}" placeholder="Ej. Lattafa"></label>
@@ -283,11 +287,23 @@ async function dialogoVenta(pedido = null, boton = null) {
   buscar.addEventListener('input', demorar(() => {
     const r = buscarEn(lista, buscar.value);
     const texto = buscar.value.trim();
-    resultados.hidden = !r.length && texto.length < 2;
+    const palabras = normalizar(texto).split(/\s+/).filter(Boolean);
+    const enStock = palabras.length ? stock.libres.filter((l) => l.cantidad > 0 && palabras.every((w) => normalizar(`${l.marca} ${l.nombre}`).includes(w))).slice(0, 5) : [];
+    resultados.hidden = !r.length && !enStock.length && texto.length < 2;
     resultados.innerHTML = r.map((p) => `<button type="button" data-id="${escapar(p.id)}">${miniatura(p)}<span>${escapar(p.marca)} · ${escapar(p.nombre)}</span></button>`).join('')
+      + enStock.map((l) => `<button type="button" data-stock-libre="${escapar(l.id)}">${icono('paquete')}<span>${escapar([l.marca, l.nombre].filter(Boolean).join(' · '))}${l.ml ? ` · ${l.ml} ml` : ''} <small>(fuera del catálogo · ${l.cantidad} en stock)</small></span></button>`).join('')
       + (texto.length >= 2 ? `<button type="button" data-libre>${icono('mas')}<span>Agregar "${escapar(texto)}" (no está en el catálogo)</span></button>` : '');
   }, 120));
   // Agrega una línea escrita a mano (con lo que buscaron como nombre, si había algo).
+  function agregarDeStock(id) {
+    const l = stock.libres.find((x) => x.id === id);
+    lineas.push({ libre: true, stockLibre: l.id, id: null, marca: l.marca, nombre: l.nombre, ml: l.ml, cantidad: 1, precio: '', costo: l.costo ?? null, recordado: l.costo !== null });
+    buscar.value = '';
+    resultados.hidden = true;
+    pintarLineas();
+    contLineas.querySelector(`[data-i="${lineas.length - 1}"] [data-campo="precio"]`)?.focus();
+  }
+
   function agregarLibre() {
     lineas.push({ libre: true, id: null, marca: '', nombre: buscar.value.trim(), ml: 100, cantidad: 1, precio: '', costo: null });
     buscar.value = '';
@@ -300,6 +316,11 @@ async function dialogoVenta(pedido = null, boton = null) {
   resultados.addEventListener('click', (e) => {
     if (e.target.closest('[data-libre]')) {
       agregarLibre();
+      return;
+    }
+    const deStock = e.target.closest('[data-stock-libre]');
+    if (deStock) {
+      agregarDeStock(deStock.dataset.stockLibre);
       return;
     }
     const b = e.target.closest('[data-id]');
@@ -383,7 +404,7 @@ async function dialogoVenta(pedido = null, boton = null) {
         // En pesos se manda lo escrito tal cual; si no se tocó, va el costo en dólares que ya tenía.
         ...(costoEnPesos && l.costoArs !== undefined && l.costoArs !== null ? { costoArs: l.costoArs } : { costo: l.costo }),
         ...(l.origen !== undefined ? { origen: l.origen } : {}),
-        ...(l.libre ? { libre: true, marca: l.marca, nombre: l.nombre } : {}),
+        ...(l.libre ? { libre: true, marca: l.marca, nombre: l.nombre, stockLibre: l.stockLibre } : {}),
       })),
       nombre: valor('[data-nombre]'),
       telefono: valor('[data-telefono]'),

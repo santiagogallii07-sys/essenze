@@ -1255,3 +1255,9 @@ form[data-form-evento] { display: grid; gap: 12px; padding-bottom: 96px; }
 .deuda-aviso { margin: 0; font-size: 0.82rem; }
 .linea-venta__libre { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
 .selector-perfume__libre { justify-self: start; margin-top: 6px; }
+
+/* Stock: contador con + y −, y total de la compra */
+.contador-stock { display: inline-flex; align-items: center; gap: 2px; }
+.contador-stock strong { min-width: 2.2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.compra-total { margin: 0; font-weight: 600; text-align: right; }
+.fila-stock .fila-admin__titulo, .fila-stock .fila-admin__sub { white-space: normal; overflow: visible; text-overflow: clip; }
