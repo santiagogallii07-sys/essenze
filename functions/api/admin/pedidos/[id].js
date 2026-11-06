@@ -6,6 +6,7 @@
 import { manejar, json, error, leerJSON, texto, numero, sentenciaVersion, sentenciaCambio, leerAjustes } from '../../../../lib/util.js';
 import { ESTADOS, estaCobrado, filaAPedido, sentenciasCobro, armarItems, clienteDeEmail } from '../../../../lib/pedidos.js';
 import { asegurarEsquema } from '../../../../lib/esquema.js';
+import { PAGADO_SQL, filaADeuda } from '../../../../lib/deudas.js';
 
 async function buscar(env, id) {
   const f = await env.DB.prepare('SELECT * FROM pedidos WHERE id = ?').bind(id).first();
@@ -19,7 +20,8 @@ export const onRequestGet = manejar(async ({ params, env }) => {
   const pedido = await buscar(env, String(params.id));
   if (!pedido) return error(404, 'No existe ese pedido.');
   const { results } = await env.DB.prepare('SELECT * FROM movimientos WHERE pedido = ? ORDER BY creado').bind(pedido.id).all();
-  return json({ pedido, movimientos: results });
+  const deuda = await env.DB.prepare(`SELECT d.*, ${PAGADO_SQL} AS pagado FROM deudas d WHERE d.pedido = ?`).bind(pedido.id).first();
+  return json({ pedido, movimientos: results, deuda: deuda ? filaADeuda(deuda) : null });
 });
 
 async function editar(env, pedido, d) {
@@ -64,6 +66,7 @@ async function editar(env, pedido, d) {
       cotizacion: dolar || undefined,
       anterior: antes ? pedido : null,
       recordar,
+      deuda: ['parte', 'nada'].includes(d.deuda) ? d.deuda : '',
     })));
   } else if (antes) {
     sentencias.push(...(await sentenciasCobro(env, pedido, false)));
@@ -88,6 +91,7 @@ export const onRequestPut = manejar(async ({ params, request, env }) => {
     montoArs: vacio(d.cobradoArs) ? undefined : numero(d.cobradoArs, 0),
     metodo: d.metodo_pago !== undefined ? texto(d.metodo_pago, 40) : undefined,
     fecha: /^\d{4}-\d{2}-\d{2}$/.test(d.fecha || '') ? d.fecha : undefined,
+    deuda: ['parte', 'nada'].includes(d.deuda) ? d.deuda : '',
   };
   if (!antes && despues) sentencias.push(...(await sentenciasCobro(env, pedido, true, opciones)));
   if (antes && !despues) sentencias.push(...(await sentenciasCobro(env, pedido, false)));

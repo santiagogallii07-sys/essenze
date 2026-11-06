@@ -38,6 +38,7 @@ function tarjeta(p) {
       </ul>
       ${p.comentario ? `<p class="tarjeta-pedido__notas">Cliente: ${escapar(p.comentario)}</p>` : ''}
       ${p.notas ? `<p class="tarjeta-pedido__notas">Nota interna: ${escapar(p.notas)}</p>` : ''}
+      ${p.debe > 0.009 ? `<p class="cifra__nota"><a href="#/deudas">Debe ${p.debe_moneda === 'USD' ? usd(p.debe) : ars(p.debe)}</a></p>` : ''}
       ${p.cobrado !== null && p.cobrado !== undefined ? `<p class="cifra__nota">Cobrado ${cobradoTexto(p)}${p.metodo_pago ? ` · ${escapar(p.metodo_pago)}` : ''}${p.costo_total ? ` · ganancia ${cobradoTexto(p, p.cobrado - p.costo_total)}` : ''}</p>` : ''}
       <div class="tarjeta-pedido__acciones">
         ${wa ? `<a class="boton boton--suave boton--chico" href="https://wa.me/${wa}?text=${saludo}" target="_blank" rel="noopener">${iconoWhatsapp()} WhatsApp</a>` : ''}
@@ -56,6 +57,7 @@ function dialogoCobro(pedido) {
       ${dolarActual() ? `<label class="campo"><span>Monto cobrado ($)</span><input type="number" inputmode="decimal" step="1" min="0" value="${Math.round((pedido.total * dolarActual()) / 100) * 100}" data-monto data-pesos></label>` : `<label class="campo"><span>Monto cobrado (USD)</span><input type="number" inputmode="decimal" step="0.01" min="0" value="${pedido.total}" data-monto></label>`}
       <label class="campo"><span>Forma de pago</span><select data-metodo>${METODOS.map((m) => `<option ${pedido.metodo_pago === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
       <label class="campo"><span>Fecha del cobro</span><input type="date" value="${hoy()}" data-fecha></label>
+      <label class="casilla"><input type="checkbox" data-deuda><span>Pagó una parte: lo que falta queda en Deudas</span></label>
       <p class="campo__ayuda">Se registra el ingreso en la caja y se descuenta el stock de los perfumes que lo controlan.</p>`,
     pie: '<button class="boton boton--contorno" type="button" data-cerrar>Cancelar</button><button class="boton boton--lleno" type="button" data-ok>Registrar cobro</button>',
   });
@@ -63,6 +65,7 @@ function dialogoCobro(pedido) {
     [h.dialogo.querySelector('[data-pesos]') ? 'cobradoArs' : 'cobrado']: h.dialogo.querySelector('[data-monto]').value,
     metodo_pago: h.dialogo.querySelector('[data-metodo]').value,
     fecha: h.dialogo.querySelector('[data-fecha]').value,
+    deuda: h.dialogo.querySelector('[data-deuda]').checked ? 'parte' : '',
   }));
   return h.cerrada;
 }
@@ -115,6 +118,7 @@ async function dialogoVenta(pedido = null, boton = null) {
       origen,
       marca: i.marca,
       nombre: i.nombre,
+      libre: !!i.libre,
     }))
     : [];
   const totalLineas = () => lineas.reduce((n, l) => n + (Number(l.precio) || 0) * (Number(l.cantidad) || 0), 0);
@@ -133,6 +137,9 @@ async function dialogoVenta(pedido = null, boton = null) {
   const comisionAuto = editando && parecidos(comisionInicial, comisionPorDefecto());
   const fechaInicial = editando ? String(pedido.cobrado_en || pedido.creado).slice(0, 10) : hoy();
   const cobrado = (e) => ['cobrado', 'entregado'].includes(e);
+  // Si ya tenía deuda: pagó una parte, o nada si no entró nada a la caja.
+  const modoInicial = detalle?.deuda ? (venta ? 'parte' : 'nada') : 'todo';
+  let modoPago = modoInicial;
 
   const h = hoja({
     titulo: editando ? `Editar ${numeroDe(pedido)}` : 'Registrar venta',
@@ -151,6 +158,7 @@ async function dialogoVenta(pedido = null, boton = null) {
         <span>Agregar perfume</span>
         <input class="entrada" data-buscar placeholder="Buscar marca o nombre…" autocomplete="off" enterkeyhint="search">
         <div class="resultados-busqueda" data-resultados hidden></div>
+        <button class="boton boton--suave boton--chico selector-perfume__libre" type="button" data-libre>${icono('mas')} Perfume que no está en el catálogo</button>
       </div>
       <div class="lineas-venta" data-lineas></div>
       <div class="form-grilla form-grilla--2">
@@ -160,7 +168,15 @@ async function dialogoVenta(pedido = null, boton = null) {
         <label class="campo"><span>Fecha</span><input type="date" value="${fechaInicial}" data-fecha></label>
         ${editando ? `<label class="campo"><span>Estado</span><select data-estado>${Object.entries(ESTADOS).map(([k, v]) => `<option value="${k}" ${pedido.estado === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` : ''}
         <label class="campo" data-cobro><span>Forma de pago</span><select data-metodo>${METODOS.map((m) => `<option ${pedido?.metodo_pago === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
-        <label class="campo" data-cobro><span>Total cobrado (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" step="0.01" min="0" data-total placeholder="Se calcula solo" value="${cobradoInicial ?? ''}"></label>
+        <div class="campo ancho-total pago-venta" data-cobro><span class="campo__rotulo">¿Cuánto pagó?</span>
+          <div class="segmentado" role="radiogroup" aria-label="Cuánto pagó">
+            <label><input type="radio" name="pago" value="todo" ${modoInicial === 'todo' ? 'checked' : ''}><span>Todo</span></label>
+            <label><input type="radio" name="pago" value="parte" ${modoInicial === 'parte' ? 'checked' : ''}><span>Una parte</span></label>
+            <label><input type="radio" name="pago" value="nada" ${modoInicial === 'nada' ? 'checked' : ''}><span>Nada (lo debe)</span></label>
+          </div>
+          <p class="campo__ayuda deuda-aviso" data-aviso-deuda></p>
+        </div>
+        <label class="campo" data-cobro data-campo-total><span data-rotulo-total>Total cobrado (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" step="0.01" min="0" data-total placeholder="Se calcula solo" value="${cobradoInicial ?? ''}"></label>
         ${editando ? `<label class="campo" data-cobro><span>Comisión del pasante (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" step="0.01" min="0" data-comision value="${venta ? Math.round(comisionInicial * 100) / 100 : ''}" placeholder="${textoMoneda(comisionPorDefecto())} (automática)"></label>` : ''}
         ${editando && (pedido.origen === 'web' || pedido.comentario) ? `<label class="campo ancho-total"><span>Comentario del cliente</span><textarea rows="2" data-comentario>${escapar(pedido.comentario || '')}</textarea></label>` : ''}
         ${editando ? `<label class="campo ancho-total"><span>Nota interna</span><textarea rows="2" data-notas>${escapar(pedido.notas || '')}</textarea></label>` : ''}
@@ -189,19 +205,61 @@ async function dialogoVenta(pedido = null, boton = null) {
   };
   function refrescarTotales() {
     campoTotal.placeholder = lineas.length ? `${textoMoneda(totalLineas())} (calculado)` : 'Se calcula solo';
-    if (cobradoAuto && !totalTocado) campoTotal.value = lineas.length ? Math.round(totalLineas() * 100) / 100 : '';
+    if (cobradoAuto && !totalTocado && modoPago === 'todo') campoTotal.value = lineas.length ? Math.round(totalLineas() * 100) / 100 : '';
+    pintarPago();
     if (campoComision) {
       campoComision.placeholder = `${textoMoneda(comisionPorDefecto())} (automática)`;
       if (comisionAuto && !comisionTocada && campoComision.value !== '') campoComision.value = Math.round(comisionPorDefecto() * 100) / 100;
     }
   }
+  // Cuánto pagó: con "una parte" se escribe lo que pagó y el resto va a Deudas; con "nada", todo va a Deudas.
+  function pintarPago() {
+    const avisoDeuda = d.querySelector('[data-aviso-deuda]');
+    d.querySelector('[data-campo-total]').hidden = modoPago === 'nada' || (campoEstado && !cobrado(campoEstado.value));
+    d.querySelector('[data-rotulo-total]').textContent = `${modoPago === 'parte' ? 'Cuánto pagó' : 'Total cobrado'} (${enPesos ? '$' : 'USD'})`;
+    campoTotal.placeholder = modoPago === 'parte' ? 'Lo que pagó' : campoTotal.placeholder;
+    const pago = Number(campoTotal.value) || 0;
+    const falta = modoPago === 'nada' ? totalLineas() : modoPago === 'parte' ? totalLineas() - pago : 0;
+    avisoDeuda.textContent = modoPago === 'todo' ? ''
+      : falta > 0.009 ? `Queda debiendo ${textoMoneda(falta)}: va a Deudas, y cuando pague lo registrás ahí.${detalle?.deuda?.pagado > 0 ? ` De eso ya pagó ${detalle.deuda.moneda === 'USD' ? usd(detalle.deuda.pagado) : ars(detalle.deuda.pagado)} (se mantiene).` : ''}` : 'Escribí cuánto pagó: lo que falte va a Deudas.';
+  }
+  d.querySelectorAll('[name=pago]').forEach((r) => r.addEventListener('change', () => {
+    modoPago = r.value;
+    if (modoPago === 'parte' && !totalTocado) campoTotal.value = '';
+    if (modoPago === 'todo' && !totalTocado) campoTotal.value = lineas.length ? Math.round(totalLineas() * 100) / 100 : '';
+    refrescarTotales();
+    if (modoPago === 'parte') campoTotal.focus();
+  }));
+
   function mostrarCobro() {
     const visible = !campoEstado || cobrado(campoEstado.value);
     d.querySelectorAll('[data-cobro]').forEach((el) => { el.hidden = !visible; });
+    if (visible) pintarPago();
+  }
+
+  // Perfume que no está en el catálogo: marca, nombre y tamaño escritos a mano (no toca stock ni costos del catálogo).
+  function lineaLibre(l, i) {
+    return `
+        <div class="linea-venta" data-i="${i}">
+          <span class="fila-admin__texto"><span class="fila-admin__titulo">Perfume escrito a mano</span><small class="cifra__nota">No está en el catálogo: no descuenta stock.</small></span>
+          <button class="boton-icono" type="button" data-quitar aria-label="Quitar">${icono('cerrar')}</button>
+          <div class="linea-venta__libre">
+            <label class="campo"><span>Marca</span><input data-campo="marca" maxlength="80" autocapitalize="words" value="${escapar(l.marca || '')}" placeholder="Ej. Lattafa"></label>
+            <label class="campo"><span>Nombre</span><input data-campo="nombre" maxlength="120" autocapitalize="words" value="${escapar(l.nombre || '')}" placeholder="Ej. Khamrah Qahwa"></label>
+          </div>
+          <div class="linea-venta__datos">
+            <label class="campo"><span>Tamaño (ml)</span><input type="number" inputmode="numeric" min="0" value="${l.ml || ''}" placeholder="100" data-campo="ml"></label>
+            <label class="campo"><span>Cantidad</span><input type="number" inputmode="numeric" min="1" value="${l.cantidad}" data-campo="cantidad"></label>
+            <label class="campo"><span>Precio c/u (${enPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" min="0" step="0.01" value="${l.precio}" data-campo="precio"></label>
+            <label class="campo"><span>Costo c/u (${costoEnPesos ? '$' : 'USD'})</span><input type="number" inputmode="decimal" min="0" step="${costoEnPesos ? 1 : 0.01}" value="${costoVisible(l)}" placeholder="Opcional" data-campo="costo">
+              <small class="campo__ayuda" data-equivalente>${equivalente(l)}</small></label>
+          </div>
+        </div>`;
   }
 
   function pintarLineas() {
     contLineas.innerHTML = lineas.map((l, i) => {
+      if (l.libre) return lineaLibre(l, i);
       const p = lista.find((x) => x.id === l.id);
       const opciones = p ? [...p.presentaciones.map((x) => x.ml)] : [];
       if (!opciones.includes(l.ml)) opciones.push(l.ml);
@@ -224,10 +282,26 @@ async function dialogoVenta(pedido = null, boton = null) {
 
   buscar.addEventListener('input', demorar(() => {
     const r = buscarEn(lista, buscar.value);
-    resultados.hidden = !r.length;
-    resultados.innerHTML = r.map((p) => `<button type="button" data-id="${escapar(p.id)}">${miniatura(p)}<span>${escapar(p.marca)} · ${escapar(p.nombre)}</span></button>`).join('');
+    const texto = buscar.value.trim();
+    resultados.hidden = !r.length && texto.length < 2;
+    resultados.innerHTML = r.map((p) => `<button type="button" data-id="${escapar(p.id)}">${miniatura(p)}<span>${escapar(p.marca)} · ${escapar(p.nombre)}</span></button>`).join('')
+      + (texto.length >= 2 ? `<button type="button" data-libre>${icono('mas')}<span>Agregar "${escapar(texto)}" (no está en el catálogo)</span></button>` : '');
   }, 120));
+  // Agrega una línea escrita a mano (con lo que buscaron como nombre, si había algo).
+  function agregarLibre() {
+    lineas.push({ libre: true, id: null, marca: '', nombre: buscar.value.trim(), ml: 100, cantidad: 1, precio: '', costo: null });
+    buscar.value = '';
+    resultados.hidden = true;
+    pintarLineas();
+    const nueva = contLineas.querySelector(`[data-i="${lineas.length - 1}"] [data-campo="${lineas.at(-1).nombre ? 'precio' : 'marca'}"]`);
+    nueva?.focus();
+  }
+  d.querySelector('.selector-perfume__libre').addEventListener('click', agregarLibre);
   resultados.addEventListener('click', (e) => {
+    if (e.target.closest('[data-libre]')) {
+      agregarLibre();
+      return;
+    }
     const b = e.target.closest('[data-id]');
     if (!b) return;
     const p = lista.find((x) => x.id === b.dataset.id);
@@ -253,10 +327,12 @@ async function dialogoVenta(pedido = null, boton = null) {
         delete l.costoArs;
         l.costo = v;
       }
+    } else if (campo === 'marca' || campo === 'nombre') {
+      l[campo] = e.target.value;
     } else {
       l[campo] = Number(e.target.value);
     }
-    if (campo === 'ml') {
+    if (campo === 'ml' && !l.libre) {
       const pres = presDe(l);
       if (pres) {
         l.precio = enMoneda(pres.precio);
@@ -279,7 +355,7 @@ async function dialogoVenta(pedido = null, boton = null) {
     lineas.splice(Number(e.target.closest('[data-i]').dataset.i), 1);
     pintarLineas();
   });
-  campoTotal.addEventListener('input', () => { totalTocado = true; });
+  campoTotal.addEventListener('input', () => { totalTocado = true; pintarPago(); });
   d.querySelectorAll('[data-moneda-costo]').forEach((r) => r.addEventListener('change', () => {
     costoEnPesos = r.value === 'ARS' && r.checked;
     pintarLineas();
@@ -289,6 +365,7 @@ async function dialogoVenta(pedido = null, boton = null) {
 
   d.querySelector('[data-guardar]').addEventListener('click', (e) => conCarga(e.currentTarget, async () => {
     if (!lineas.length) return aviso('Agregá al menos un perfume.', 'error');
+    if (lineas.some((l) => l.libre && String(l.nombre || '').trim().length < 2)) return aviso('Escribí el nombre del perfume que no está en el catálogo.', 'error');
     const valor = (sel) => d.querySelector(sel)?.value;
     // El nombre es obligatorio: así cada venta queda a nombre de alguien.
     const campoNombre = d.querySelector('[data-nombre]');
@@ -306,14 +383,20 @@ async function dialogoVenta(pedido = null, boton = null) {
         // En pesos se manda lo escrito tal cual; si no se tocó, va el costo en dólares que ya tenía.
         ...(costoEnPesos && l.costoArs !== undefined && l.costoArs !== null ? { costoArs: l.costoArs } : { costo: l.costo }),
         ...(l.origen !== undefined ? { origen: l.origen } : {}),
+        ...(l.libre ? { libre: true, marca: l.marca, nombre: l.nombre } : {}),
       })),
       nombre: valor('[data-nombre]'),
       telefono: valor('[data-telefono]'),
       email: valor('[data-email]'),
       metodo_pago: valor('[data-metodo]'),
       fecha: valor('[data-fecha]'),
-      [enPesos ? 'cobradoArs' : 'cobrado']: campoTotal.value,
+      [enPesos ? 'cobradoArs' : 'cobrado']: modoPago === 'nada' ? 0 : campoTotal.value,
+      deuda: modoPago === 'todo' ? '' : modoPago,
     };
+    if (modoPago === 'parte' && (campoTotal.value === '' || Number(campoTotal.value) >= totalLineas())) {
+      campoTotal.focus();
+      return aviso('Escribí cuánto pagó (menos que el total): el resto va a Deudas.', 'error');
+    }
     if (editando) {
       Object.assign(datos, {
         estado: campoEstado.value,

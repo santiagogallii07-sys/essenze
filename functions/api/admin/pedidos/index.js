@@ -1,7 +1,9 @@
 // GET /api/admin/pedidos?estado=&q= · POST → registrar una venta hecha fuera de la web (local, Instagram…)
+// La venta puede quedar pagada en parte o fiada (deuda: 'parte' | 'nada'): lo que falta va a Deudas.
 import { manejar, json, error, leerJSON, texto, numero, idAleatorio, hoyArgentina, sentenciaVersion, leerAjustes } from '../../../../lib/util.js';
 import { ESTADOS, filaAPedido, sentenciasCobro, armarItems, conNumeroNuevo, clienteDeEmail } from '../../../../lib/pedidos.js';
 import { asegurarEsquema } from '../../../../lib/esquema.js';
+import { PAGADO_SQL } from '../../../../lib/deudas.js';
 
 export const onRequestGet = manejar(async ({ request, env }) => {
   const u = new URL(request.url).searchParams;
@@ -18,7 +20,8 @@ export const onRequestGet = manejar(async ({ request, env }) => {
   await asegurarEsquema(env);
   // Pesos exactos cobrados (si la venta se cobró en pesos), para mostrarlos sin redondeos del dólar.
   const { results } = await env.DB.prepare(
-    `SELECT p.*, (SELECT m.monto_original FROM movimientos m WHERE m.pedido = p.id AND m.categoria = 'Venta' AND m.moneda = 'ARS' LIMIT 1) AS cobrado_ars
+    `SELECT p.*, (SELECT m.monto_original FROM movimientos m WHERE m.pedido = p.id AND m.categoria = 'Venta' AND m.moneda = 'ARS' LIMIT 1) AS cobrado_ars,
+       (SELECT d.monto - ${PAGADO_SQL} FROM deudas d WHERE d.pedido = p.id) AS debe, (SELECT d.moneda FROM deudas d WHERE d.pedido = p.id) AS debe_moneda
      FROM pedidos p ${where} ORDER BY p.creado DESC, p.numero DESC LIMIT 300`,
   ).bind(...valores).all();
   const { results: cuentas } = await env.DB.prepare('SELECT estado, count(*) AS n FROM pedidos GROUP BY estado').all();
@@ -56,6 +59,7 @@ export const onRequestPost = manejar(async ({ request, env }) => {
       metodo: texto(d.metodo_pago, 40),
       fecha,
       recordar,
+      deuda: ['parte', 'nada'].includes(d.deuda) ? d.deuda : '',
     });
     await env.DB.batch([
       env.DB.prepare(

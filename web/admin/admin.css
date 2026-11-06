@@ -1245,3 +1245,13 @@ form[data-form-evento] { display: grid; gap: 12px; padding-bottom: 96px; }
 .boton-prioridad { margin-right: auto; opacity: 0.35; }
 .boton-prioridad[aria-pressed="true"] { opacity: 1; }
 .boton-prioridad[aria-pressed="true"] svg { fill: currentColor; }
+
+/* Deudas: barra de cuánto se pagó y saldadas más apagadas */
+.barra-deuda { height: 4px; border-radius: 2px; background: var(--linea); overflow: hidden; }
+.barra-deuda span { display: block; height: 100%; background: currentColor; }
+.tarjeta-deuda.es-saldada { opacity: 0.6; }
+/* Ventas: cuánto pagó y perfume escrito a mano */
+.pago-venta { display: grid; gap: 8px; }
+.deuda-aviso { margin: 0; font-size: 0.82rem; }
+.linea-venta__libre { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
+.selector-perfume__libre { justify-self: start; margin-top: 6px; }
