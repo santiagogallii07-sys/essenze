@@ -5,7 +5,7 @@ import { precio, presentacionesOrdenadas, inmediata, textoMl, enlacePerfume } fr
 import { obtenerFavoritos } from './favoritos.js';
 import { icono, iconoWhatsapp } from './iconos.js';
 
-const { perfumes } = await iniciarPagina('favoritos', { pildora: true });
+const { perfumes } = await iniciarPagina('favoritos', { pildora: true, completo: true });
 let porId = new Map(perfumes.map((p) => [p.id, p]));
 
 const comparador = document.querySelector('[data-comparador]');

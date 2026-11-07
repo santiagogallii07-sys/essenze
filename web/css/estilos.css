@@ -2784,3 +2784,6 @@ button, .boton, .chip, .pestana, .tamano, .tamano-rapido, .boton-circular, .acor
   }
 }
 @keyframes punto-evento { from { transform: scale(1); opacity: 0.7; } to { transform: scale(3); opacity: 0; } }
+
+/* Catálogo cargando por partes: las cantidades aparecen cuando llegó todo */
+.catalogo-parcial :is(.pestana span, .opcion__cuenta, .tipo__cuenta, .acorde-enlace span, [data-menu-marcas] span, [data-cuenta-marcas]) { visibility: hidden; }

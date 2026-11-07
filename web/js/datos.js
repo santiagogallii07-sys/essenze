@@ -3,6 +3,8 @@ import { cuentaAbierta } from './cuenta.js';
 
 let catalogo = null;
 let datosCatalogo = null;
+// Promesa que se cumple cuando llegaron todas las partes del catálogo.
+let completo = null;
 
 async function leer(url, opciones = {}) {
   const res = await fetch(url, { headers: { Accept: 'application/json' }, ...opciones });
@@ -45,13 +47,45 @@ export function descuentoCuenta(p) {
 
 export const tieneExclusiva = (p) => p.presentaciones.some((x) => x.exclusivo);
 
-// Un solo pedido trae perfumes, ofertas vigentes, los más vendidos y datos de la tienda.
+// El catálogo llega en partes: la primera trae los datos de la tienda y lo que se ve primero
+// (stock, destacados, ofertas, evento, más vendidos), así la página se muestra enseguida;
+// el resto llega atrás y la página se completa sola (evento "catalogo:cambio" con partes = true).
+async function leerResto(d, opciones) {
+  const n = Number(d.partes) || 1;
+  const resto = await Promise.all(Array.from({ length: n - 1 }, (_, i) => leer(`/api/catalogo?parte=${i + 1}&v=${d.ajustes?.version}`, opciones)));
+  // Si cambió algo en el panel mientras llegaban, las partes no coinciden: se vuelve a empezar.
+  if (resto.some((r) => r.v !== d.ajustes?.version)) throw new Error('El catálogo cambió mientras se cargaba.');
+  return resto.flatMap((r) => r.perfumes);
+}
+
+// Mientras falta alguna parte, las cantidades (perfumes por tipo, marcas…) se ocultan: todavía no son las finales.
+const marcarParcial = (parcial) => document.documentElement.classList.toggle('catalogo-parcial', parcial);
+
+async function completar(d) {
+  try {
+    const resto = await leerResto(d);
+    if (d.completo) return d; // ya lo completó una actualización
+    aplicarPreciosCuenta(resto);
+    d.perfumes.push(...resto);
+    d.completo = true;
+    marcarParcial(false);
+    avisarCambio({ partes: true });
+  } catch {
+    await refrescarCatalogo().catch(() => {});
+  }
+  return datosCatalogo;
+}
+
 export function obtenerCatalogo() {
   if (!catalogo) {
     catalogo = leer('/api/catalogo').then((d) => {
       aplicarAjustes(d);
       aplicarPreciosCuenta(d.perfumes);
+      d.completo = !(d.partes > 1);
+      d.total ??= d.perfumes.length;
       datosCatalogo = d;
+      marcarParcial(!d.completo);
+      completo = d.completo ? Promise.resolve(d) : completar(d);
       return d;
     });
     catalogo.catch(() => { catalogo = null; });
@@ -59,8 +93,18 @@ export function obtenerCatalogo() {
   return catalogo;
 }
 
-function avisarCambio() {
-  document.dispatchEvent(new CustomEvent('catalogo:cambio', { detail: datosCatalogo }));
+// Para lo que necesita todos los perfumes (favoritos, la cuenta, enviar el pedido).
+export async function catalogoCompleto() {
+  await obtenerCatalogo();
+  return completo;
+}
+
+export const catalogoListo = () => !!datosCatalogo?.completo;
+
+function avisarCambio({ partes = false } = {}) {
+  const e = new CustomEvent('catalogo:cambio', { detail: datosCatalogo });
+  e.partes = partes;
+  document.dispatchEvent(e);
 }
 
 // Trae el catálogo de nuevo (cambió algo en el panel) y avisa a la página para que se vuelva a pintar.
@@ -68,10 +112,13 @@ function avisarCambio() {
 export async function refrescarCatalogo() {
   if (!datosCatalogo) return;
   const d = await leer('/api/catalogo', { cache: 'no-store' });
+  const resto = await leerResto(d);
+  d.perfumes.push(...resto);
   aplicarAjustes(d);
   aplicarPreciosCuenta(d.perfumes);
   datosCatalogo.perfumes.splice(0, datosCatalogo.perfumes.length, ...d.perfumes);
-  Object.assign(datosCatalogo, { ...d, perfumes: datosCatalogo.perfumes });
+  Object.assign(datosCatalogo, { ...d, perfumes: datosCatalogo.perfumes, completo: true, total: d.total ?? d.perfumes.length });
+  marcarParcial(false);
   avisarCambio();
 }
 

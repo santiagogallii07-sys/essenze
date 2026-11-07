@@ -33,8 +33,8 @@ if (!p) {
 
 // Cambió el catálogo (precio, stock u oferta desde el panel, el dólar, o se abrió o cerró la cuenta):
 // se traen los datos nuevos del perfume y se actualizan los precios sin tocar la foto ni lo elegido.
-document.addEventListener('catalogo:cambio', async () => {
-  if (!p || !alCambiarPrecios) return;
+document.addEventListener('catalogo:cambio', async (e) => {
+  if (!p || !alCambiarPrecios || e.partes) return;
   const nuevo = await obtenerPerfume(p.id).catch(() => null);
   if (!nuevo) return;
   for (const x of p.presentaciones) {

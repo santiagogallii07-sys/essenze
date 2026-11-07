@@ -1,6 +1,8 @@
 // Ajustes de la tienda, dólar de la semana, cuentas de clientes, copia de seguridad y sesión.
 import { api } from '../api.js';
-import { icono, escapar, ars, aviso, avisoError, conCarga, fijarDolar } from '../ui.js';
+import { icono, escapar, ars, aviso, avisoError, conCarga, fijarDolar, fijarMensajeCliente, mensajeCliente } from '../ui.js';
+
+const EJEMPLO = { nombre: 'Sofía', pedido: '#1024', perfumes: 'Afnan 9AM de 100 ml y 2 × Lattafa Asad de 10 ml', total: '$ 85.000' };
 
 const FUENTES = { blue: 'Blue', oficial: 'Oficial', bolsa: 'MEP', contadoconliqui: 'Contado con liqui', cripto: 'Cripto', tarjeta: 'Tarjeta' };
 
@@ -44,6 +46,11 @@ export async function montar({ vista, app }) {
           <p class="campo__ayuda" data-solo-mano>Escribí el valor y guardá. Convierte los precios del catálogo (en dólares) a pesos en la tienda y en el panel.</p>
           <button class="boton boton--suave boton--chico" type="button" data-dolar-ahora data-solo-auto>${icono('girar')} Traer el valor de hoy</button>
         </fieldset>
+
+        <label class="campo ancho-total"><span>Mensaje de WhatsApp al cliente</span>
+          <textarea name="mensajeCliente" rows="3" maxlength="600">${escapar(a.mensajeCliente || '')}</textarea>
+          <small class="campo__ayuda">Es el que se abre con el botón WhatsApp de cada pedido. Podés usar {nombre}, {pedido}, {perfumes} y {total}; se completan solos. Si lo dejás vacío vuelve al de siempre.</small>
+          <small class="campo__ayuda" data-vista-mensaje></small></label>
 
         <label class="campo ancho-total"><span>Fotos de los perfumes en la tienda</span>
           <select name="estiloFotos">
@@ -89,6 +96,12 @@ export async function montar({ vista, app }) {
     form.querySelectorAll('[data-solo-auto]').forEach((el) => { el.hidden = !auto; });
     form.querySelectorAll('[data-solo-mano]').forEach((el) => { el.hidden = auto; });
   }
+  const vistaMensaje = form.querySelector('[data-vista-mensaje]');
+  const pintarMensaje = () => {
+    vistaMensaje.textContent = f.mensajeCliente.value.trim() ? `Ejemplo: ${mensajeCliente(EJEMPLO, f.mensajeCliente.value)}` : '';
+  };
+  f.mensajeCliente.addEventListener('input', pintarMensaje);
+  pintarMensaje();
   f.dolarAuto.addEventListener('change', modoDolar);
   modoDolar();
 
@@ -124,10 +137,14 @@ export async function montar({ vista, app }) {
             seccionOfertas: f.seccionOfertas.checked,
             comision: f.comision.value,
             estiloFotos: f.estiloFotos.value,
+            mensajeCliente: f.mensajeCliente.value,
           },
         });
         f.cotizacion.value = r.cotizacion || '';
         fijarDolar(r.cotizacion);
+        fijarMensajeCliente(r.mensajeCliente);
+        f.mensajeCliente.value = r.mensajeCliente || '';
+        pintarMensaje();
         aviso(r.avisoDolar || 'Ajustes guardados', r.avisoDolar ? 'error' : 'ok');
       } catch (err) {
         avisoError(err);

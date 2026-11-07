@@ -1,6 +1,6 @@
 // Pedidos de la web y ventas manuales: estados, cobro (va a la caja y descuenta stock) y WhatsApp al cliente.
 import { api } from '../api.js';
-import { icono, escapar, usd, ars, pesos, precioDoble, dolarActual, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar } from '../ui.js';
+import { icono, escapar, usd, ars, pesos, precioDoble, dolarActual, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar, mensajeCliente, listaPerfumes } from '../ui.js';
 import { iconoWhatsapp } from '/js/iconos.js';
 import { perfumesLivianos, olvidarPerfumes, buscarEn, normalizar } from '../datos.js';
 
@@ -21,7 +21,15 @@ function cobradoTexto(p, montoUsd = p.cobrado) {
 
 function tarjeta(p) {
   const wa = whatsappDe(p.telefono);
-  const saludo = encodeURIComponent(`Hola ${p.nombre.split(' ')[0] || ''}! Te escribo de Essenze por tu pedido ${numeroDe(p)}.`);
+  const total = p.items.length && p.items.every((i) => i.precioArs !== undefined)
+    ? ars(p.items.reduce((n, i) => n + i.precioArs * i.cantidad, 0))
+    : pesos(p.total);
+  const saludo = encodeURIComponent(mensajeCliente({
+    nombre: (p.nombre || '').split(' ')[0],
+    pedido: numeroDe(p),
+    perfumes: listaPerfumes(p.items),
+    total,
+  }));
   return `
     <article class="tarjeta-pedido" data-id="${escapar(p.id)}">
       <div class="tarjeta-pedido__cabeza">

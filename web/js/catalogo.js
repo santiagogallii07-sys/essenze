@@ -23,7 +23,10 @@ const ORDENES = {
   nombre: 'Nombre (A–Z)',
 };
 
-const datosCatalogo = await iniciarPagina('catalogo');
+// Sin filtros se muestra enseguida con la primera parte (trae lo que va arriba: stock, destacados, ofertas)
+// y se completa sola; con búsqueda, filtros u otro orden en la dirección se espera el catálogo entero.
+const conFiltros = [...new URLSearchParams(location.search).keys()].some((k) => k !== 'tipo');
+const datosCatalogo = await iniciarPagina('catalogo', { completo: conFiltros });
 const { perfumes } = datosCatalogo;
 // Puesto de cada perfume entre los más vendidos (0 = el más vendido).
 let ranking = new Map((datosCatalogo.masVendidos || []).map((id, i) => [id, i]));
@@ -191,14 +194,19 @@ function limpiarTodo() {
   actualizar();
 }
 
-function pintarResultados() {
+// Mientras falta parte del catálogo, las cantidades se ocultan (todavía no son las finales).
+const parcial = () => !datosCatalogo.completo;
+
+function pintarResultados({ conservar = false } = {}) {
   resultados = ordenar(perfumes.filter((p) => cumple(p)));
   const lista = resultados;
-  mostrados = POR_TANDA;
+  // Al completarse el catálogo se mantienen las tarjetas que ya se habían cargado al bajar.
+  mostrados = conservar ? Math.max(POR_TANDA, mostrados) : POR_TANDA;
   el.grilla.innerHTML = lista.slice(0, mostrados).map((p) => tarjeta(p)).join('');
   el.masResultados.hidden = lista.length <= mostrados;
-  el.vacio.hidden = lista.length > 0;
-  const texto = `${lista.length} ${lista.length === 1 ? 'perfume' : 'perfumes'}`;
+  el.vacio.hidden = lista.length > 0 || parcial();
+  const n = parcial() && !estado.tipo ? datosCatalogo.total : lista.length;
+  const texto = parcial() && estado.tipo ? '' : `${n} ${n === 1 ? 'perfume' : 'perfumes'}`;
   el.cuenta.forEach((c) => { c.textContent = texto; });
   const ev = estado.evento && eventoActual();
   el.titulo.textContent = ev && !estado.tipo ? ev.nombre : estado.oferta && !estado.tipo ? 'Ofertas' : estado.tipo ? TIPOS[estado.tipo] : 'Catálogo';
@@ -213,15 +221,15 @@ document.addEventListener('catalogo:cambio', (e) => {
   ranking = new Map((e.detail.masVendidos || []).map((id, i) => [id, i]));
   conInmediata = verEntregaInmediata(perfumes);
   if (!conInmediata) estado.stock = false;
-  actualizar({ historial: false });
+  actualizar({ historial: false, conservar: e.partes });
 });
 
-function actualizar({ historial = true } = {}) {
+function actualizar({ historial = true, conservar = false } = {}) {
   if (historial) escribirEstado();
   pintarTabs();
   pintarFiltros();
   pintarChips();
-  pintarResultados();
+  pintarResultados({ conservar });
 }
 
 /* Eventos */

@@ -1,5 +1,5 @@
 // GET / PUT /api/admin/ajustes → datos de la tienda, dólar (automático de los lunes o a mano) y cuentas de clientes.
-import { manejar, json, leerJSON, leerAjustes, texto, numero, sentenciaVersion, ErrorCliente } from '../../../lib/util.js';
+import { manejar, json, leerJSON, leerAjustes, MENSAJE_CLIENTE, texto, numero, sentenciaVersion, ErrorCliente } from '../../../lib/util.js';
 import { FUENTES, actualizarDolarSiToca, fijarDolarDeHoy } from '../../../lib/dolar.js';
 
 export const onRequestGet = manejar(async ({ env }) => {
@@ -25,6 +25,8 @@ export const onRequestPut = manejar(async ({ request, env }) => {
     seccion_vendidos: d.seccionVendidos === false ? '0' : '1',
     seccion_ofertas: d.seccionOfertas === false ? '0' : '1',
     comision_usd: String(Math.max(0, numero(d.comision, 3))),
+    // Vacío vuelve al mensaje de siempre.
+    mensaje_cliente: texto(d.mensajeCliente, 600) || MENSAJE_CLIENTE,
     estilo_fotos: d.estiloFotos === 'oscuro' ? 'oscuro' : 'blanco',
     dolar_auto: dolarAuto ? '1' : '0',
     dolar_fuente: dolarFuente,

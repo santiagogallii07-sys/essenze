@@ -79,7 +79,7 @@ async function conCuenta(datos) {
   if (grilla) activarTarjetas(grilla);
 }
 
-const datos = await iniciarPagina('cuenta');
+const datos = await iniciarPagina('cuenta', { completo: true });
 const pintar = () => (cuentaAbierta() ? conCuenta(datos) : sinCuenta());
 pintar();
 

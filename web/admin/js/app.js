@@ -1,6 +1,6 @@
 // Panel de administración: ingreso, navegación y enrutado por #/seccion.
 import { api, cambioPropioReciente } from './api.js';
-import { icono, escapar, hoja, aviso, avisoError, fijarDolar } from './ui.js';
+import { icono, escapar, hoja, aviso, avisoError, fijarDolar, fijarMensajeCliente } from './ui.js';
 import { olvidarPerfumes } from './datos.js';
 import { reproducir } from '/js/personaje.js';
 
@@ -219,7 +219,9 @@ async function mostrarPanel() {
   el.ingreso.hidden = true;
   el.panel.hidden = false;
   try {
-    fijarDolar((await api('/ajustes')).cotizacion);
+    const ajustes = await api('/ajustes');
+    fijarDolar(ajustes.cotizacion);
+    fijarMensajeCliente(ajustes.mensajeCliente);
   } catch { /* sin dólar: se muestra en USD */ }
   rutaActual = '';
   await enrutar();

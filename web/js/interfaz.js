@@ -11,7 +11,7 @@ import { cuentaAbierta, crearCuenta, ingresar, traerCuenta } from './cuenta.js';
 import {
   obtenerCatalogo, precio, precioArs, precioDesde, hayInmediata, inmediata, mostrarDescuento, descuentoMaximo, eventoActual,
   presentacionesOrdenadas, enlacePerfume, MAXIMO_POR_LINEA, textoMl, normalizar, textoBuscable,
-  descuentoCuenta, tieneExclusiva, refrescarCatalogo,
+  descuentoCuenta, tieneExclusiva, refrescarCatalogo, catalogoCompleto, catalogoListo,
 } from './datos.js';
 
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -710,6 +710,13 @@ function montarBolsa() {
     const form = e.currentTarget;
     const enviar = form.querySelector('[type="submit"]');
     if (enviar.disabled || !validar(form)) return;
+    // Recién al entrar puede faltar alguna parte del catálogo: se espera un instante y se vuelve a tocar.
+    if (!catalogoListo()) {
+      enviar.disabled = true;
+      catalogoCompleto().finally(() => { enviar.disabled = false; });
+      aviso('Un segundo: estamos terminando de cargar el catálogo. Volvé a tocar Enviar.');
+      return;
+    }
     const lineas = lineasBolsa();
     if (!lineas.length) {
       mostrarPaso('items');
@@ -1087,7 +1094,8 @@ for (const evento of ['pageswap', 'pagereveal']) {
   });
 }
 
-export async function iniciarPagina(pagina, { pildora = true, conservarContenido = false } = {}) {
+// completo: la página espera a que lleguen todas las partes del catálogo (favoritos, cuenta).
+export async function iniciarPagina(pagina, { pildora = true, conservarContenido = false, completo = false } = {}) {
   const cab = document.querySelector('[data-cabecera]');
   const pieEl = document.querySelector('[data-pie]');
   cab.innerHTML = cabecera(pagina);
@@ -1152,6 +1160,7 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
   let datos;
   try {
     datos = await obtenerCatalogo();
+    if (completo) datos = await catalogoCompleto();
   } catch {
     if (conservarContenido) throw new Error('catálogo no disponible');
     document.querySelector('main').innerHTML = `
@@ -1166,7 +1175,8 @@ export async function iniciarPagina(pagina, { pildora = true, conservarContenido
   // Al llegar al final, el cocodrilo cruza el pie y dibuja el logo.
   reproducirAlVer(pieEl.querySelector('.pie__personaje'));
   perfumesPorId = new Map(datos.perfumes.map((p) => [p.id, p]));
-  depurarFavoritos((id) => perfumesPorId.has(id));
+  // Los favoritos que ya no están se borran recién con el catálogo entero (si no, se borrarían los que no llegaron).
+  catalogoCompleto().then((d) => { if (d?.completo) depurarFavoritos((id) => perfumesPorId.has(id)); }).catch(() => {});
   pintarMarcasMenu(datos.perfumes);
   pintarEventoNav();
   document.addEventListener('carrito:cambio', () => {

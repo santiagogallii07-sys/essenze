@@ -351,12 +351,16 @@ function fila(selector, lista, minimo = 1, revelar = false) {
 }
 
 // primera: la primera vez entra con animación; cuando se repinta por un cambio del panel, no.
-function pintar(datos, { primera = false } = {}) {
+// soloCuentas: llegó el resto del catálogo; las filas ya tienen sus perfumes (vienen en la primera parte),
+// solo cambian las cantidades de tipos, marcas y acordes.
+function pintar(datos, { primera = false, soloCuentas = false } = {}) {
   const { perfumes } = datos;
   const porId = new Map(perfumes.map((p) => [p.id, p]));
   montarTipos(document.querySelector('[data-tipos]'), perfumes);
   montarMarcas(document.querySelector('[data-cuenta-marcas]'), perfumes);
   montarAcordes(document.querySelector('[data-acordes]'), perfumes);
+  document.querySelector('[data-total-perfumes]').textContent = datos.total ?? perfumes.length;
+  if (soloCuentas) return;
   // Evento de precios en curso: fila propia con su nombre y cuándo termina.
   const ev = datos.evento;
   if (ev) {
@@ -369,7 +373,6 @@ function pintar(datos, { primera = false } = {}) {
   fila('[data-destacados]', elegirDestacados(perfumes), 1, primera);
   fila('[data-ofertas]', CONFIG.seccionOfertas === false ? [] : perfumes.filter((p) => enOferta(p)), 1, primera);
   fila('[data-inmediata]', verEntregaInmediata(perfumes) ? perfumes.filter(hayInmediata) : [], 1, primera);
-  document.querySelector('[data-total-perfumes]').textContent = perfumes.length;
   if (primera) {
     document.querySelector('.portada-doble').classList.add('es-entrada');
     observarRevelado();
@@ -384,4 +387,4 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-todas-marcas]')) abrirMarcas();
 });
 // Cambió el catálogo (precios, stock, ofertas o el dólar): se vuelve a pintar sin recargar la página.
-document.addEventListener('catalogo:cambio', (e) => pintar(e.detail));
+document.addEventListener('catalogo:cambio', (e) => pintar(e.detail, { soloCuentas: e.partes }));

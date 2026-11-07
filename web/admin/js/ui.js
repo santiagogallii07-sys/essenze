@@ -26,6 +26,19 @@ let dolar = 0;
 export function fijarDolar(valor) {
   dolar = Number(valor) || 0;
 }
+// Mensaje al cliente (Ajustes): se completa con los datos del pedido.
+let plantillaCliente = 'Hola {nombre}! Te escribo de Essenze por tu pedido {pedido}: {perfumes}.';
+export function fijarMensajeCliente(texto) {
+  if (texto) plantillaCliente = String(texto);
+}
+export function mensajeCliente(datos, plantilla = plantillaCliente) {
+  return plantilla.replace(/\{(nombre|pedido|perfumes|total)\}/gi, (_, k) => datos[k.toLowerCase()] ?? '');
+}
+// "Afnan 9AM de 100 ml, 2 × Lattafa Asad de 10 ml y Rasasi Hawas de 100 ml"
+export function listaPerfumes(items = []) {
+  const partes = items.map((i) => `${i.cantidad > 1 ? `${i.cantidad} × ` : ''}${[i.marca, i.nombre].filter(Boolean).join(' ')}${i.ml ? ` de ${i.ml} ml` : ''}`);
+  return partes.length > 1 ? `${partes.slice(0, -1).join(', ')} y ${partes.at(-1)}` : partes[0] || '';
+}
 export function dolarActual() {
   return dolar;
 }
