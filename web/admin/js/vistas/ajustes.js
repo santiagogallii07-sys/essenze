@@ -1,6 +1,7 @@
 // Ajustes de la tienda, dólar de la semana, cuentas de clientes, copia de seguridad y sesión.
 import { api } from '../api.js';
-import { icono, escapar, ars, aviso, avisoError, conCarga, fijarDolar, fijarMensajeCliente, mensajeCliente } from '../ui.js';
+import { icono, escapar, ars, aviso, avisoError, conCarga, fijarDolar, fijarMensajeCliente, mensajeCliente, confirmar } from '../ui.js';
+import { olvidarPerfumes } from '../datos.js';
 
 const EJEMPLO = { nombre: 'Sofía', pedido: '#1024', perfumes: 'Afnan 9AM de 100 ml y 2 × Lattafa Asad de 10 ml', total: '$ 85.000' };
 
@@ -78,6 +79,15 @@ export async function montar({ vista, app }) {
       <h2 class="tarjeta-admin__titulo">Copia de seguridad</h2>
       <p class="campo__ayuda">Descargá todos los datos (perfumes, ofertas, pedidos y caja) en un archivo. Hacelo una vez por mes y guardalo en tu Drive.</p>
       <a class="boton boton--contorno" href="/api/admin/respaldo" style="margin-top:12px" download>${icono('bajar')} Descargar copia</a>
+
+      <h3 class="tarjeta-admin__titulo" style="margin-top:22px">Volver el catálogo a una copia</h3>
+      <p class="campo__ayuda">Si una carga salió mal (por ejemplo, se subió el Excel equivocado), elegí una copia descargada antes de esa carga y el catálogo vuelve a quedar como estaba ese día: perfumes, precios, stock, fotos y qué se muestra en la tienda. No toca pedidos, caja, deudas ni ajustes.</p>
+      <label class="boton boton--suave" style="margin-top:12px">${icono('subir')} Elegir copia (.json)
+        <input type="file" accept=".json,application/json" data-archivo-copia hidden></label>
+      <div data-copia-elegida hidden style="margin-top:12px">
+        <p class="campo__ayuda" data-copia-texto></p>
+        <button class="boton boton--peligro" type="button" data-restaurar style="margin-top:10px">${icono('girar')} Restaurar catálogo</button>
+      </div>
     </section>
 
     <section class="tarjeta-admin">
@@ -150,6 +160,64 @@ export async function montar({ vista, app }) {
         avisoError(err);
       }
     });
+  });
+  // Restaurar el catálogo desde una copia de seguridad.
+  const archivoCopia = vista.querySelector('[data-archivo-copia]');
+  const cajaCopia = vista.querySelector('[data-copia-elegida]');
+  let copia = null;
+  archivoCopia.addEventListener('change', async () => {
+    const archivo = archivoCopia.files[0];
+    copia = null;
+    cajaCopia.hidden = true;
+    if (!archivo) return;
+    try {
+      const d = JSON.parse(await archivo.text());
+      if (!Array.isArray(d?.perfumes) || !d.perfumes.length) throw new Error();
+      copia = { creado: d.creado || null, perfumes: d.perfumes };
+      const cuando = d.creado ? new Date(d.creado).toLocaleString('es-AR', { dateStyle: 'full', timeStyle: 'short' }) : 'fecha desconocida';
+      const visibles = d.perfumes.filter((p) => Number(p.visible) === 1).length;
+      vista.querySelector('[data-copia-texto]').textContent = `Copia del ${cuando}: ${d.perfumes.length} perfumes (${visibles} visibles en la tienda).`;
+      cajaCopia.hidden = false;
+    } catch {
+      avisoError(new Error('Ese archivo no es una copia de seguridad de Essenze. Elegí el .json que se descarga con "Descargar copia".'));
+    } finally {
+      archivoCopia.value = '';
+    }
+  });
+
+  // Antes de restaurar se descarga una copia de cómo está ahora, por si hay que deshacerlo.
+  async function descargarCopiaActual() {
+    const r = await fetch('/api/admin/respaldo', { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('No se pudo descargar la copia de cómo está ahora. No se cambió nada.');
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `essenze-antes-de-restaurar-${new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-')}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  vista.querySelector('[data-restaurar]').addEventListener('click', (e) => {
+    if (!copia) return;
+    const boton = e.currentTarget;
+    confirmar(`¿Volver el catálogo a la copia elegida (${copia.perfumes.length} perfumes)?`, {
+      aceptar: 'Restaurar',
+      peligro: true,
+      detalle: 'Se reemplazan todos los perfumes por los de la copia. Los cambios de precios, stock o perfumes hechos después de esa copia se pierden. Antes se descarga sola una copia de cómo está ahora, por si querés volver atrás.',
+    }).then((si) => si && conCarga(boton, async () => {
+      try {
+        await descargarCopiaActual();
+        const r = await api('/restaurar', { metodo: 'POST', datos: copia });
+        olvidarPerfumes();
+        copia = null;
+        cajaCopia.hidden = true;
+        aviso(`Catálogo restaurado: ${r.perfumes} perfumes (${r.visibles} visibles).${r.sinFoto ? ` ${r.sinFoto} quedaron sin foto porque la foto ya no está guardada.` : ''}`);
+      } catch (err) {
+        avisoError(err);
+      }
+    }));
   });
   return undefined;
 }
