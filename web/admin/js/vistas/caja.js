@@ -129,12 +129,12 @@ export async function montar({ vista, consulta, app }) {
         <button class="boton-icono" type="button" data-mes="1" aria-label="Mes siguiente" ${esActual ? 'disabled' : ''}>${icono('flecha')}</button>
       </div>
 
-      <div class="cifras">
-        <div class="cifra cifra--positiva"><span class="cifra__rotulo">Ingresos</span><span class="cifra__valor">${fmt(c.ingresos)}</span><span class="cifra__nota">Ventas ${fmt(c.ventas)} · ${c.unidades} perfumes</span></div>
-        <div class="cifra cifra--negativa"><span class="cifra__rotulo">Egresos</span><span class="cifra__valor">${fmt(c.egresos)}</span><span class="cifra__nota">Comisiones ${fmt(c.comisiones)}</span></div>
-        <div class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}"><span class="cifra__rotulo">Saldo</span><span class="cifra__valor">${fmt(c.saldo)}</span><span class="cifra__nota">${resumen.moneda === 'ARS' && resumen.dolar ? usd(c.saldo / resumen.dolar) : 'Ingresos − egresos'}</span></div>
-        <div class="cifra"><span class="cifra__rotulo">Ganancia de ventas</span><span class="cifra__valor">${fmt(c.margen)}</span><span class="cifra__nota">${c.ventas ? `${Math.round((c.margen / c.ventas) * 100)}% · costo ${fmt(c.costoVendido)}` : 'Sin ventas'}</span></div>
+      <div class="cifras cifras--3">
+        <div class="cifra cifra--positiva"><span class="cifra__rotulo">Ingresos</span><span class="cifra__valor">${fmt(c.ingresos)}</span><span class="cifra__nota">${c.unidades} ${c.unidades === 1 ? 'perfume vendido' : 'perfumes vendidos'}${c.porCobrar > 0.5 ? ` · ${fmt(c.porCobrar)} todavía se los deben` : ''}</span></div>
+        <div class="cifra cifra--negativa"><span class="cifra__rotulo">Egresos</span><span class="cifra__valor">${fmt(c.egresos)}</span><span class="cifra__nota">Todos los gastos del mes${c.porPagar > 0.5 ? ` · ${fmt(c.porPagar)} todavía los deben ustedes` : ''}</span></div>
+        <div class="cifra ${c.ganancia >= 0 ? '' : 'cifra--negativa'}"><span class="cifra__rotulo">Ganancia</span><span class="cifra__valor">${fmt(c.ganancia)}</span><span class="cifra__nota">Ingresos − egresos${resumen.moneda === 'ARS' && resumen.dolar ? ` · ${usd(c.ganancia / resumen.dolar)}` : ''}</span></div>
       </div>
+      <p class="cifra__nota" style="margin-top:6px">Las deudas cuentan el día que se anotan: lo que les deben ya suma como ingreso y lo que deben ustedes como egreso. Cuando se pagan, no se cuentan de nuevo.</p>
 
       <div class="grilla-admin grilla-admin--2" style="margin-top:12px">
         <section class="tarjeta-admin">
@@ -168,7 +168,7 @@ export async function montar({ vista, consulta, app }) {
       <li><button class="movimiento movimiento--${m.tipo}" type="button" data-mov="${m.id}">
         <span class="movimiento__titulo">${escapar(m.descripcion || m.categoria)}</span>
         <span class="movimiento__monto">${m.tipo === 'egreso' ? '−' : '+'}${resumen.moneda === 'ARS' ? ars(enPesos(m)) : usd(m.monto)}<small>${usd(m.monto)}</small></span>
-        <span class="movimiento__sub">${fecha(m.fecha)} · ${escapar(m.categoria)}${m.pedido ? ' · desde pedido' : ''}</span>
+        <span class="movimiento__sub">${fecha(m.fecha)} · ${escapar(m.categoria)}${m.pedido ? ' · desde pedido' : ''}${m.deuda ? ' · ya contado en la deuda' : ''}</span>
       </button></li>`).join('')}</ul>`;
   }
 

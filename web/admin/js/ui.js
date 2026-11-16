@@ -121,8 +121,30 @@ export function avisoError(e) {
  * Abre una hoja: abajo en el celular, centrada en la compu.
  * @returns {{dialogo: HTMLDialogElement, cuerpo: HTMLElement, cerrar: Function, cerrada: Promise}}
  */
+// Mientras una ventana está cargando sus datos, el panel no se repinta solo (ver app.js):
+// si no, el botón que la abre vuelve a quedar habilitado y un segundo toque abre otra encima.
+let ocupado = 0;
+export const panelOcupado = () => ocupado > 0;
+export async function mientrasCarga(promesa) {
+  ocupado++;
+  try {
+    return await promesa;
+  } finally {
+    ocupado--;
+  }
+}
+
+// Cierra todas las ventanas abiertas (al cambiar de sección): nunca queda una colgada tapando la pantalla.
+export function cerrarHojas() {
+  document.querySelectorAll('dialog.hoja-admin').forEach((d) => d._cerrar?.(undefined, true));
+}
+
 export function hoja({ titulo, html = '', pie = '', ancho = 560, clase = '' }) {
+  // Nunca dos ventanas iguales una encima de otra (un doble toque, o el panel que se actualizó mientras cargaba):
+  // la vieja se cierra al instante y queda la nueva.
+  document.querySelectorAll('dialog.hoja-admin').forEach((o) => { if (o.dataset.titulo === titulo) o._cerrar?.(undefined, true); });
   const d = document.createElement('dialog');
+  d.dataset.titulo = titulo;
   d.className = `hoja-admin ${clase}`;
   d.style.setProperty('--ancho', `${ancho}px`);
   d.innerHTML = `
@@ -139,15 +161,21 @@ export function hoja({ titulo, html = '', pie = '', ancho = 560, clase = '' }) {
   let resolver;
   const cerrada = new Promise((r) => { resolver = r; });
   const panel = d.querySelector('.hoja-admin__panel');
-  const cerrar = (valor) => {
-    if (!d.open) return;
+  let cerrando = false;
+  // ya: sin animación (cuando la reemplaza otra igual o se cambia de sección).
+  const cerrar = (valor, ya = false) => {
+    if (cerrando || !d.isConnected) return;
+    cerrando = true;
     d.classList.remove('es-visible');
-    setTimeout(() => {
-      d.close();
+    const fin = () => {
+      if (d.open) d.close();
       d.remove();
       resolver(valor);
-    }, 220);
+    };
+    if (ya) fin();
+    else setTimeout(fin, 220);
   };
+  d._cerrar = cerrar;
   d.addEventListener('cancel', (e) => {
     e.preventDefault();
     cerrar();
@@ -157,7 +185,10 @@ export function hoja({ titulo, html = '', pie = '', ancho = 560, clase = '' }) {
   });
   arrastrarParaCerrar(panel, d.querySelector('.hoja-admin__cabecera'), () => cerrar());
   d.showModal();
-  requestAnimationFrame(() => d.classList.add('es-visible'));
+  // Aparece con animación; el segundo intento asegura que se vea aunque el celular se saltee el cuadro.
+  const mostrar = () => { if (!cerrando) d.classList.add('es-visible'); };
+  requestAnimationFrame(mostrar);
+  setTimeout(mostrar, 80);
   return { dialogo: d, cuerpo: d.querySelector('.hoja-admin__cuerpo'), cerrar, cerrada };
 }
 

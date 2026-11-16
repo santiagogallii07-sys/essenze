@@ -1,6 +1,6 @@
 // Pedidos de la web y ventas manuales: estados, cobro (va a la caja y descuenta stock) y WhatsApp al cliente.
 import { api } from '../api.js';
-import { icono, escapar, usd, ars, pesos, precioDoble, dolarActual, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar, mensajeCliente, listaPerfumes } from '../ui.js';
+import { icono, escapar, usd, ars, pesos, precioDoble, dolarActual, fechaHora, hoja, confirmar, aviso, avisoError, conCarga, miniatura, ESTADOS, whatsappDe, hoy, demorar, mensajeCliente, listaPerfumes, mientrasCarga } from '../ui.js';
 import { iconoWhatsapp } from '/js/iconos.js';
 import { perfumesLivianos, olvidarPerfumes, buscarEn, normalizar } from '../datos.js';
 
@@ -81,7 +81,23 @@ function dialogoCobro(pedido) {
 // Registrar una venta nueva o editar una existente (todo: perfumes, precios, costos, cliente, fecha, estado y cobro).
 // El costo se carga en dólares (o en pesos, si se elige) y queda en dólares como "último costo" del perfume.
 // boton: el que abrió la ventana; muestra que está cargando hasta que la ventana aparece.
+// Una sola ventana de venta a la vez: los toques repetidos mientras carga o está abierta no abren otra.
+let ventaEnCurso = false;
 async function dialogoVenta(pedido = null, boton = null) {
+  if (ventaEnCurso) return false;
+  ventaEnCurso = true;
+  try {
+    return await armarVenta(pedido, boton);
+  } catch (err) {
+    // Si algo falla con la ventana ya abierta, se cierra: nunca queda el fondo oscuro trabando la pantalla.
+    document.querySelectorAll('dialog.hoja-admin').forEach((d) => d._cerrar?.(undefined, true));
+    throw err;
+  } finally {
+    ventaEnCurso = false;
+  }
+}
+
+async function armarVenta(pedido, boton) {
   const editando = !!pedido;
   if (boton) {
     boton.disabled = true;
@@ -93,13 +109,13 @@ async function dialogoVenta(pedido = null, boton = null) {
   let stock;
   try {
     // La lista de perfumes es liviana y queda guardada: desde la segunda venta la ventana abre al instante.
-    [lista, ajustes, detalle, stock] = await Promise.all([
+    [lista, ajustes, detalle, stock] = await mientrasCarga(Promise.all([
       perfumesLivianos(),
       api('/ajustes'),
       editando ? api(`/pedidos/${encodeURIComponent(pedido.id)}`) : null,
       // Perfumes fuera del catálogo que tienen en stock (pestaña Stock): también se buscan acá.
       api('/stock').catch(() => ({ libres: [] })),
-    ]);
+    ]));
   } catch (err) {
     avisoError(err);
     return false;

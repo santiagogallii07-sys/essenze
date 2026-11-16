@@ -1,7 +1,7 @@
 // Panel de administración: ingreso, navegación y enrutado por #/seccion.
 import { api, cambioPropioReciente } from './api.js';
-import { icono, escapar, hoja, aviso, avisoError, fijarDolar, fijarMensajeCliente } from './ui.js';
-import { olvidarPerfumes } from './datos.js';
+import { icono, escapar, hoja, aviso, avisoError, fijarDolar, fijarMensajeCliente, panelOcupado, cerrarHojas } from './ui.js';
+import { renovarPerfumes } from './datos.js';
 import { reproducir } from '/js/personaje.js';
 
 const SECCIONES = [
@@ -32,6 +32,16 @@ const el = {
 
 let limpiar = null;
 let guardia = null;
+
+// Cada sección pone sus escuchas (clics, cambios) en el contenedor de la vista. Antes de armar una sección
+// (otra, la misma de nuevo o al actualizarse sola) se cambia por una copia sin escuchas: si no, se acumulan
+// y un solo toque abre la misma ventana varias veces. conservar: la copia mantiene lo que se ve (sin parpadeo).
+function vistaLimpia(conservar = false) {
+  const nueva = el.vista.cloneNode(conservar);
+  el.vista.replaceWith(nueva);
+  el.vista = nueva;
+  return nueva;
+}
 let rutaActual = '';
 let nuevosPedidos = 0;
 
@@ -110,6 +120,7 @@ async function enrutar() {
     return;
   }
   guardia = null;
+  cerrarHojas();
   const { destino, modulo, params, consulta } = resolver(hash);
   rutaActual = hash;
 
@@ -118,6 +129,7 @@ async function enrutar() {
   pintarNav(destino.id);
   app.titulo(destino.texto);
   app.acciones('');
+  vistaLimpia();
   el.vista.innerHTML = '<div class="cargando" aria-busy="true"><span></span><span></span><span></span></div>';
   el.vista.scrollTop = 0;
   window.scrollTo(0, 0);
@@ -140,6 +152,7 @@ let repintarPendiente = false;
 
 function puedeRepintar() {
   if (document.querySelector('dialog[open]')) return false; // una venta o un formulario a medio cargar
+  if (panelOcupado()) return false; // una ventana que se está abriendo (bajando sus datos)
   const foco = document.activeElement;
   if (foco && el.vista.contains(foco) && foco.matches('input, textarea, select')) return false; // escribiendo
   if (guardia) return false; // el editor con cambios sin guardar
@@ -158,6 +171,7 @@ async function repintarVista() {
     const m = await import(modulo);
     if (rutaActual !== hash || !puedeRepintar()) return;
     if (typeof limpiar === 'function') limpiar();
+    vistaLimpia(true);
     limpiar = await m.montar({ vista: el.vista, params, consulta, app });
     window.scrollTo(0, y);
   } catch (e) {
@@ -187,7 +201,7 @@ async function revisarCambios() {
   }
   if (r.cambios !== cambiosVistos) {
     cambiosVistos = r.cambios;
-    olvidarPerfumes();
+    renovarPerfumes();
     // Lo que cambió uno mismo ya se ve: solo se repinta por cambios de otros.
     if (!cambioPropioReciente()) repintarPendiente = true;
   }

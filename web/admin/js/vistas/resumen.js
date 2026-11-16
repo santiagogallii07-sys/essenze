@@ -68,10 +68,10 @@ export async function montar({ vista, app }) {
       <a class="cifra" href="#/caja">
         <span class="cifra__rotulo">Gastos del mes</span>
         <span class="cifra__valor">${fmt(c.egresos)}</span>
-        <span class="cifra__nota">Todo lo que salió de la caja</span>
+        <span class="cifra__nota">Todos los egresos, también lo que deben</span>
       </a>
       <a class="cifra ${c.saldo >= 0 ? '' : 'cifra--negativa'}" href="#/caja">
-        <span class="cifra__rotulo">Saldo del mes</span>
+        <span class="cifra__rotulo">Ganancia del mes</span>
         <span class="cifra__valor">${fmt(c.saldo)}</span>
         <span class="cifra__nota">Ingresos − egresos</span>
       </a>

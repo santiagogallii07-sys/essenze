@@ -1261,3 +1261,13 @@ form[data-form-evento] { display: grid; gap: 12px; padding-bottom: 96px; }
 .contador-stock strong { min-width: 2.2ch; text-align: center; font-variant-numeric: tabular-nums; }
 .compra-total { margin: 0; font-weight: 600; text-align: right; }
 .fila-stock .fila-admin__titulo, .fila-stock .fila-admin__sub { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* Caja: Ingresos / Egresos / Ganancia (en el celular, la ganancia ocupa todo el ancho) */
+.cifras--3 > :last-child { grid-column: 1 / -1; }
+@media (min-width: 900px) {
+  .cifras--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cifras--3 > :last-child { grid-column: auto; }
+}
+
+/* Ventana arriba de otra (una confirmación): su fondo apenas oscurece, así nunca queda la pantalla negra */
+.hoja-admin[open] ~ .hoja-admin::backdrop { background: rgba(0, 0, 0, 0.18); }
