@@ -54,6 +54,7 @@ const LIQUIDOS = {
   'disenador-masculino': ['#16243a', '#3b4d63', '#1a1a1d', '#1e2a3d'],
   'disenador-femenino': ['#e3b9ad', '#e8c98c', '#d9a7a0', '#101624'],
   nicho: ['#1d1d1f', '#3d2817', '#e0a63a', '#b8442e'],
+  kits: ['#e0a63a', '#3d2817', '#d9a7a0', '#16243a'],
 };
 function frascoPorDefecto(p) {
   let h = 0;

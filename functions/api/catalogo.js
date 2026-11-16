@@ -85,9 +85,12 @@ export const onRequestGet = manejar(async ({ request, env, waitUntil }) => {
   const evento = await eventoActivo(env);
   const fijos = new Set([...masVendidos, ...vigentes.map((o) => o.perfume).filter(Boolean)]);
   const partes = dividir(perfumes, { fijos, evento });
+  // Cuántos hay de cada tipo: las categorías vacías (por ejemplo Kits, hasta que carguen alguno) no se muestran.
+  const porTipo = {};
+  for (const p of perfumes) porTipo[p.tipo] = (porTipo[p.tipo] || 0) + 1;
   // Se arman y guardan todas las partes juntas: las que pide la página después ya están listas.
   const cuerpos = partes.map((lista, n) => (n === 0
-    ? JSON.stringify({ ajustes: publicos, ofertas: vigentes, evento, masVendidos, partes: partes.length, total: perfumes.length, perfumes: lista })
+    ? JSON.stringify({ ajustes: publicos, ofertas: vigentes, evento, masVendidos, partes: partes.length, total: perfumes.length, porTipo, perfumes: lista })
     : JSON.stringify({ v: ajustes.version, perfumes: lista })));
   const respuestas = cuerpos.map((c) => jsonCrudo(c, 200, { 'Cache-Control': 'public, max-age=30' }));
   waitUntil(Promise.all(respuestas.map((r, n) => cache.put(claveDe(n), r.clone()))));

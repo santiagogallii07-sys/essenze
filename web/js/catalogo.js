@@ -1,6 +1,6 @@
 import { CONFIG, TIPOS, GENEROS, ESTACIONES, OCASIONES } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar } from './interfaz.js';
-import { precioDesde, hayInmediata, verEntregaInmediata, enOferta, enEvento, eventoActual, normalizar, textoBuscable } from './datos.js';
+import { precioDesde, hayInmediata, verEntregaInmediata, enOferta, enEvento, eventoActual, normalizar, textoBuscable, tiposConPerfumes } from './datos.js';
 import { icono } from './iconos.js';
 
 const INTENSIDAD_ACORDE = 50;
@@ -114,7 +114,8 @@ function ordenar(lista) {
 
 function pintarTabs() {
   const base = perfumes.filter((p) => cumple(p, 'tipo'));
-  const opciones = [['', 'Todos'], ...Object.entries(TIPOS)];
+  // Las categorías vacías no se muestran (salvo la que está elegida).
+  const opciones = [['', 'Todos'], ...Object.entries(TIPOS).filter(([k]) => k === estado.tipo || tiposConPerfumes().some(([t]) => t === k))];
   el.tabs.innerHTML = opciones.map(([clave, nombre]) => {
     const n = clave ? base.filter((p) => p.tipo === clave).length : base.length;
     const activo = estado.tipo === clave;

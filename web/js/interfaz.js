@@ -11,7 +11,7 @@ import { cuentaAbierta, crearCuenta, ingresar, traerCuenta } from './cuenta.js';
 import {
   obtenerCatalogo, precio, precioArs, precioDesde, hayInmediata, inmediata, mostrarDescuento, descuentoMaximo, eventoActual,
   presentacionesOrdenadas, enlacePerfume, MAXIMO_POR_LINEA, textoMl, normalizar, textoBuscable,
-  descuentoCuenta, tieneExclusiva, refrescarCatalogo, catalogoCompleto, catalogoListo,
+  descuentoCuenta, tieneExclusiva, refrescarCatalogo, catalogoCompleto, catalogoListo, tiposConPerfumes,
 } from './datos.js';
 
 const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -83,7 +83,7 @@ function formatoTelefono(n) {
 
 function pie() {
   const wa = `https://wa.me/${CONFIG.whatsapp}`;
-  const tipos = Object.entries(TIPOS).map(([k, v]) => `<li><a href="/catalogo?tipo=${k}">${v}</a></li>`).join('');
+  const tipos = tiposConPerfumes().map(([k, v]) => `<li><a href="/catalogo?tipo=${k}">${v}</a></li>`).join('');
   return `
   <div class="contenedor pie__grilla">
     <div class="pie__marca">

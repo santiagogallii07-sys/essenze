@@ -3,7 +3,7 @@
 // Si cambia el catálogo (desde el panel), las filas se vuelven a pintar solas.
 import { TIPOS, CONFIG } from './config.js';
 import { iniciarPagina, tarjeta, activarTarjetas, escapar, imagenPerfume, urlFoto, abrirMarcas, marcasConCuenta, observarRevelado } from './interfaz.js';
-import { enOferta, hayInmediata, verEntregaInmediata, normalizar } from './datos.js';
+import { enOferta, hayInmediata, verEntregaInmediata, normalizar, tiposConPerfumes, cantidadDeTipo } from './datos.js';
 import { icono } from './iconos.js';
 import { videoPersonaje, reproducir, puedeAnimar } from './personaje.js';
 
@@ -271,14 +271,17 @@ async function elegirMuestras(lista) {
 }
 
 function montarTipos(raiz, perfumes) {
-  const entradas = Object.entries(TIPOS);
+  const entradas = tiposConPerfumes();
   raiz.innerHTML = entradas.map(([clave, nombre], i) => {
     const lista = perfumes.filter((p) => p.tipo === clave);
+    // La cantidad llega con la primera parte del catálogo (no cambia cuando llega el resto).
+    const n = cantidadDeTipo(clave) ?? lista.length;
+    const palabra = clave === 'kits' ? (n === 1 ? 'kit' : 'kits') : (n === 1 ? 'perfume' : 'perfumes');
     return `
     <li style="--i:${i}">
       <a class="tipo" href="/catalogo?tipo=${clave}">
         <span class="tipo__nombre">${nombre}</span>
-        <span class="tipo__cuenta">${lista.length} ${lista.length === 1 ? 'perfume' : 'perfumes'}</span>
+        <span class="tipo__cuenta">${n} ${palabra}</span>
         <span class="tipo__frascos" aria-hidden="true" data-frascos="${clave}"></span>
         ${icono('flecha', 'tipo__flecha')}
       </a>

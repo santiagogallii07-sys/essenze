@@ -23,6 +23,7 @@ function valorCelda(v) {
 export function tipoDeHoja(nombre) {
   const n = norm(nombre);
   const fem = /femen|femin|mujer/.test(n);
+  if (n.includes('kit')) return 'kits';
   if (n.includes('nicho')) return 'nicho';
   if (n.includes('arabe')) return fem ? 'arabe-femenino' : 'arabe-masculino';
   if (n.includes('disenador') || n.includes('designer')) return fem ? 'disenador-femenino' : 'disenador-masculino';

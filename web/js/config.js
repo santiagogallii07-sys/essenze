@@ -19,6 +19,7 @@ export const TIPOS = {
   'disenador-masculino': 'Diseñador masculino',
   'disenador-femenino': 'Diseñador femenino',
   'nicho': 'Nicho',
+  'kits': 'Kits',
 };
 
 export const GENEROS = { hombre: 'Hombre', mujer: 'Mujer', unisex: 'Unisex' };

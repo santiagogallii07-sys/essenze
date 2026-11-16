@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG, TIPOS } from './config.js';
 import { cuentaAbierta } from './cuenta.js';
 
 let catalogo = null;
@@ -100,6 +100,13 @@ export async function catalogoCompleto() {
 }
 
 export const catalogoListo = () => !!datosCatalogo?.completo;
+
+// Categorías que tienen perfumes (las vacías no se muestran). Sin el dato, se muestran todas.
+export function tiposConPerfumes() {
+  const n = datosCatalogo?.porTipo;
+  return Object.entries(TIPOS).filter(([k]) => !n || n[k] > 0);
+}
+export const cantidadDeTipo = (k) => datosCatalogo?.porTipo?.[k];
 
 function avisarCambio({ partes = false } = {}) {
   const e = new CustomEvent('catalogo:cambio', { detail: datosCatalogo });
